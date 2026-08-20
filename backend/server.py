@@ -68,8 +68,8 @@ def _cache_put(voyage_id, result):
 def index():
     return send_from_directory(FRONTEND, "index.html")
 
-
 @app.route("/api/voyages")
+@app.route("/voyages")
 def voyages():
     out = []
     for vid, v in SAMPLE_VOYAGES.items():
@@ -86,6 +86,7 @@ def voyages():
 
 
 @app.route("/api/audit/<voyage_id>")
+@app.route("/audit/<voyage_id>")
 def audit(voyage_id):
     if voyage_id not in SAMPLE_VOYAGES:
         return jsonify({"error": "voyage not found"}), 404
@@ -108,6 +109,7 @@ def audit(voyage_id):
 
 
 @app.route("/api/cache", methods=["DELETE"])
+@app.route("/cache", methods=["DELETE"])
 def clear_cache():
     """Clear all cached audit results."""
     removed = 0
