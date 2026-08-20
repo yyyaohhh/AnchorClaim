@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(ROOT, "agent"))
 from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402
 
-FRONTEND = os.path.join(ROOT, "frontend")
+FRONTEND = os.path.join(ROOT, "public")
 app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
 
 # ---------------------------------------------------------------------------
