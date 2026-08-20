@@ -1,7 +1,8 @@
-import sys
 import os
+import sys
 
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, root_path)
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 from backend.server import app
