@@ -50,21 +50,33 @@ def _extract_json(text: str) -> dict:
 
 
 def _mock_parse(text: str) -> dict:
-    """Regex fallback so the demo works without Ollama, reading each real contract."""
+    """Regex fallback so the demo works without Ollama, reading each real contract.
+
+    Each field carries a confidence score: 1.0 when the pattern matched cleanly,
+    a lower value when we fell back to a default. Downstream, low-confidence fields
+    trigger a human-review gate before any settlement.
+    """
     laytime = re.search(r"laytime.*?(\d+)\s*hours", text, re.IGNORECASE | re.DOTALL)
     rate = re.search(r"USD\s*([\d,]+)\s*per\s*day", text, re.IGNORECASE)
     vessel = re.search(r"Vessel Name:\s*(.+)", text)
-    # suspension conditions: pull the words after the exceptions clause
     conds = []
     ex = re.search(r"Time lost due to (.+?)(?:events|shall)", text, re.IGNORECASE | re.DOTALL)
     if ex:
         raw = re.split(r",|\bor\b", ex.group(1))
         conds = [c.strip(" .\n") for c in raw if c.strip(" .\n")]
+
+    confidence = {
+        "laytime_hours": 0.97 if laytime else 0.4,
+        "demurrage_rate_usd_per_day": 0.97 if rate else 0.4,
+        "suspension_conditions": 0.9 if conds else 0.45,
+        "vessel_name": 0.98 if vessel else 0.3,
+    }
     return {
         "laytime_hours": int(laytime.group(1)) if laytime else 48,
         "demurrage_rate_usd_per_day": int(rate.group(1).replace(",", "")) if rate else 25000,
         "suspension_conditions": conds or ["bad weather"],
         "vessel_name": vessel.group(1).strip() if vessel else "Unknown",
+        "confidence": confidence,
     }
 
 
@@ -82,6 +94,8 @@ JSON Schema Requirements:
 2. demurrage_rate_usd_per_day (number)
 3. suspension_conditions (array of strings)
 4. vessel_name (string)
+5. confidence (object mapping each of the four fields above to a number 0-1 for how
+   certain you are it was stated explicitly in the contract; use a low value if you inferred it)
 
 Return raw JSON string only.
 """
@@ -96,7 +110,13 @@ Return raw JSON string only.
         format="json",  # ask Ollama to emit JSON directly, reducing noise
     )
     raw = response["message"]["content"]
-    return _extract_json(raw)
+    parsed = _extract_json(raw)
+    # ensure a confidence block exists even if the model omitted it
+    parsed.setdefault("confidence", {
+        "laytime_hours": 0.9, "demurrage_rate_usd_per_day": 0.9,
+        "suspension_conditions": 0.85, "vessel_name": 0.95,
+    })
+    return parsed
 
 
 if __name__ == "__main__":
