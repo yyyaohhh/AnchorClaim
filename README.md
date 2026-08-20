@@ -32,6 +32,14 @@ parse contract  ->  calculate demurrage  ->  settle on-chain
   voyage's contract invalidates its entry automatically. A vessel already analyzed is
   marked in the fleet list, and a "Clear cache" control or `DELETE /api/cache` resets it.
   Force a fresh run with `Re-run` in the UI or `/api/audit/<id>?refresh=1`.
+- **Live contract editing** — edit any clause in the charter party in the UI and
+  re-audit; the agent re-parses the text and the numbers update, showing the result is
+  computed from the contract, not hardcoded.
+- **Confidence scores & human-review gate** — each parsed field carries a confidence
+  score; low-confidence parses or settlements above a ceiling are paused as
+  `needs_review` (human-in-the-loop) instead of auto-settling.
+- **Explainable settlement** — every demurrage figure expands into a step-by-step
+  calculation breakdown (gross hours → exclusions → counted → excess → rate → total).
 - **Fleet search** — filter the fleet by vessel name, IMO number or port as you type.
 
 ## Run the UI

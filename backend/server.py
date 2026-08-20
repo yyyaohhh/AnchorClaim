@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(ROOT, "agent"))
 from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402
 
-FRONTEND = os.path.join(ROOT, "public")
+FRONTEND = os.path.join(ROOT, "frontend")
 app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
 # analyzed vessel is served instantly and survives server restarts. The key
 # includes the input hash, so editing a voyage's contract invalidates its entry.
 # ---------------------------------------------------------------------------
-CACHE_DIR = "/tmp/cache"
+CACHE_DIR = os.path.join(ROOT, ".cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 
@@ -68,8 +68,8 @@ def _cache_put(voyage_id, result):
 def index():
     return send_from_directory(FRONTEND, "index.html")
 
+
 @app.route("/api/voyages")
-@app.route("/voyages")
 def voyages():
     out = []
     for vid, v in SAMPLE_VOYAGES.items():
@@ -80,13 +80,13 @@ def voyages():
             "port": v["port"],
             "deposit": v["escrow"]["deposit"],
             "freight": v["escrow"]["freight"],
+            "contract_text": v["contract_text"],
             "cached": _cache_get(vid) is not None,
         })
     return jsonify({"voyages": out})
 
 
 @app.route("/api/audit/<voyage_id>")
-@app.route("/audit/<voyage_id>")
 def audit(voyage_id):
     if voyage_id not in SAMPLE_VOYAGES:
         return jsonify({"error": "voyage not found"}), 404
@@ -108,8 +108,29 @@ def audit(voyage_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/audit/<voyage_id>", methods=["POST"])
+def audit_edited(voyage_id):
+    """Re-audit a voyage with a contract edited live in the UI.
+
+    The edited text is parsed fresh (watch the numbers change), and the result is
+    never cached, so each edit is a real run against the engine.
+    """
+    if voyage_id not in SAMPLE_VOYAGES:
+        return jsonify({"error": "voyage not found"}), 404
+    body = request.get_json(silent=True) or {}
+    contract_text = body.get("contract_text")
+    if not contract_text:
+        return jsonify({"error": "contract_text required"}), 400
+    try:
+        result = audit_voyage(voyage_id, SAMPLE_VOYAGES[voyage_id], contract_override=contract_text)
+        result["_cached"] = False
+        result["_edited"] = True
+        return jsonify(result)
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/cache", methods=["DELETE"])
-@app.route("/cache", methods=["DELETE"])
 def clear_cache():
     """Clear all cached audit results."""
     removed = 0

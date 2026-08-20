@@ -17,12 +17,34 @@ from step2_calculate import calculate_demurrage, cross_check_ais
 from step3_settle_onchain import settle_on_chain
 
 
-def audit_voyage(voyage_id, voyage, do_settle=True):
-    """Run the full audit for one voyage. Returns a structured result dict."""
+# Thresholds for the human-review gate.
+CONFIDENCE_THRESHOLD = 0.6      # any parsed field below this needs a human to confirm
+AUTO_SETTLE_CEILING_USD = 250000  # settlements above this always route to human approval
+
+
+def _review_flags(contract, penalty_usd):
+    """Decide whether this audit must pause for human review, and why."""
+    reasons = []
+    conf = contract.get("confidence", {})
+    low = [f for f, c in conf.items() if c < CONFIDENCE_THRESHOLD]
+    if low:
+        reasons.append("low parser confidence on: " + ", ".join(low))
+    if penalty_usd > AUTO_SETTLE_CEILING_USD:
+        reasons.append(f"amount ${penalty_usd:,.0f} exceeds auto-settle ceiling ${AUTO_SETTLE_CEILING_USD:,.0f}")
+    return reasons
+
+
+def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
+    """Run the full audit for one voyage. Returns a structured result dict.
+
+    contract_override: optional raw contract text supplied at run time (lets the
+    UI re-audit an edited contract and watch the numbers change live).
+    """
     steps = []
 
     # --- Step 1: parse contract (LLM) ---
-    contract = parse_contract(voyage["contract_text"])
+    contract_text = contract_override if contract_override else voyage["contract_text"]
+    contract = parse_contract(contract_text)
     steps.append({"name": "parse_contract", "output": contract})
 
     # --- Step 2: calculate demurrage (with suspension deduction) ---
@@ -63,15 +85,21 @@ def audit_voyage(voyage_id, voyage, do_settle=True):
 
     # capped at deposit
     capped = min(penalty, voyage["escrow"]["deposit"])
-    result["verdict"] = {
-        "type": "demurrage",
+    base_verdict = {
         "excess_hours": receipt["excess_time_hours"],
         "amount_usd": penalty,
         "penalty": capped,
         "refund_to_charterer": voyage["escrow"]["deposit"] - capped,
         "freight_to_owner": voyage["escrow"]["freight"],
-        "settled": True,
     }
+
+    # --- Human-in-the-loop gate: low confidence or large amount -> pause for review ---
+    flags = _review_flags(contract, penalty)
+    if flags:
+        result["verdict"] = {**base_verdict, "type": "needs_review", "settled": False, "review_reasons": flags}
+        return result
+
+    result["verdict"] = {**base_verdict, "type": "demurrage", "settled": True}
 
     # --- Step 3: settle on-chain ---
     if do_settle:

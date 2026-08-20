@@ -1,8 +1,0 @@
-# Core (required to run the UI + API)
-flask>=2.0
-
-# Optional — enable real contract parsing
-ollama
-
-# Optional — enable real on-chain settlement
-web3
