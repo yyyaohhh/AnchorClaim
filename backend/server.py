@@ -32,7 +32,7 @@ app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
 # analyzed vessel is served instantly and survives server restarts. The key
 # includes the input hash, so editing a voyage's contract invalidates its entry.
 # ---------------------------------------------------------------------------
-CACHE_DIR = os.path.join(ROOT, ".cache")
+CACHE_DIR = "/tmp/cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 
