@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnchorClaim · Demurrage Audit & Settlement</title>
+<style>
+  :root{
+    --bg:#F4F7FA; --surface:#FFFFFF; --surface-2:#EEF3F8; --line:#DCE5EE;
+    --ink:#16222E; --muted:#5E7183; --faint:#8FA3B4;
+    --navy:#1B3B52; --amber:#D9822B; --amber-deep:#9A5A16; --amber-soft:#FBEBD7;
+    --teal:#128B6E; --teal-soft:#DBF1EA; --red:#C6413B; --red-soft:#F8E2E1;
+    --mono:'SF Mono',ui-monospace,'Roboto Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;
+    --shadow:0 1px 2px rgba(22,34,46,.06),0 4px 16px rgba(22,34,46,.05);
+    --shadow-lg:0 8px 30px rgba(22,34,46,.13);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased;min-height:100vh}
+  .wrap{max-width:1120px;margin:0 auto;padding:30px 24px 70px}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+    padding-bottom:20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand h1{font-size:21px;font-weight:650;letter-spacing:.2px;color:var(--navy)}
+  .brand .anchor{color:var(--amber);font-size:22px;line-height:1;transform:translateY(2px)}
+  .tag{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.4px;
+    border:1px solid var(--line);border-radius:999px;padding:4px 11px;background:var(--surface)}
+  .sub{font-family:var(--mono);font-size:12px;color:var(--faint)}
+
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:24px;margin-top:24px}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+
+  .rail h2{font-size:11px;text-transform:uppercase;letter-spacing:1.6px;color:var(--faint);
+    font-weight:650;margin:0}
+  .rail-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .clear-cache{font:500 11px var(--sans);color:var(--muted);background:none;border:1px solid var(--line);
+    border-radius:7px;padding:4px 9px;cursor:pointer;transition:all .15s}
+  .clear-cache:hover{border-color:var(--amber);color:var(--amber)}
+  .clear-cache:active{transform:translateY(1px)}
+  .search-wrap{position:relative;margin-bottom:14px}
+  .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint);
+    font-size:16px;pointer-events:none}
+  .search{width:100%;box-sizing:border-box;padding:10px 12px 10px 32px;border:1px solid var(--line);
+    border-radius:10px;background:var(--surface);color:var(--ink);font:14px var(--sans);
+    box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s}
+  .search:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
+  .search::placeholder{color:var(--faint)}
+  .no-results{font-size:13px;color:var(--faint);font-family:var(--mono);padding:16px 4px;text-align:center}
+  .fleet{display:flex;flex-direction:column;gap:12px}
+  /* uniform size: every card is the same fixed height + padding */
+  .voyage{min-height:104px;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:16px;cursor:pointer;text-align:left;color:inherit;font:inherit;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;justify-content:space-between;
+    transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s,border-color .18s;
+    transform-origin:center}
+  .voyage:hover{transform:scale(1.03);box-shadow:var(--shadow-lg);border-color:#C4D3E0}
+  .voyage:active{transform:scale(1.05)}
+  .voyage.active{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-soft),var(--shadow-lg);transform:scale(1.04)}
+  .voyage:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .voyage .vn{font-weight:640;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .voyage .vm{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
+  .voyage .vs{align-self:flex-start;font-family:var(--mono);font-size:11px;
+    padding:3px 9px;border-radius:999px;font-weight:600}
+  .s-demurrage{background:var(--amber-soft);color:var(--amber)}
+  .s-none{background:var(--teal-soft);color:var(--teal)}
+  .s-dispute{background:var(--red-soft);color:var(--red)}
+  .s-loading{background:var(--surface-2);color:var(--faint)}
+  .voyage .cached-dot{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);
+    font-size:10px;color:var(--teal);margin-top:4px}
+  .voyage .cached-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block}
+  .voyage.hidden{display:none}
+  .hint{font-size:12px;color:var(--faint);line-height:1.6;margin-top:14px}
+
+  .stage{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px;
+    min-height:540px;box-shadow:var(--shadow)}
+  .voyage-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .voyage-head .vt{font-size:20px;font-weight:650;color:var(--navy)}
+  .voyage-head .vmeta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px}
+  .contract{display:flex;gap:22px;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);
+    font-size:12px;color:var(--muted)}
+  .contract b{color:var(--ink);font-weight:640}
+
+  .run{margin-left:auto;background:var(--amber);color:#fff;border:none;border-radius:10px;
+    padding:12px 20px;font:640 14px var(--sans);cursor:pointer;box-shadow:var(--shadow);
+    transition:filter .15s,transform .1s}
+  .run:hover{filter:brightness(1.05)}
+  .run:active{transform:translateY(1px)}
+  .run:disabled{opacity:.5;cursor:default}
+
+  .steps{margin-top:26px;display:flex;flex-direction:column}
+  .step{display:grid;grid-template-columns:28px 1fr;gap:15px;padding:15px 0;
+    border-top:1px solid var(--line);opacity:.4;transition:opacity .3s}
+  .step:first-child{border-top:none}
+  .step.on{opacity:1}
+  .dot{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--faint);
+    background:var(--surface);transition:all .3s}
+  .step.on .dot{border-color:var(--amber);color:var(--amber)}
+  .step.done .dot{border-color:var(--teal);background:var(--teal);color:#fff}
+  .step.fail .dot{border-color:var(--red);background:var(--red);color:#fff}
+  .step .title{font-weight:640;font-size:14px}
+  .step .body{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:6px;
+    white-space:pre-wrap;line-height:1.7}
+
+  .laytime{margin-top:28px}
+  .bar{position:relative;height:40px;border-radius:9px;overflow:hidden;background:var(--surface-2);
+    border:1px solid var(--line)}
+  .seg{position:absolute;top:0;bottom:0;display:grid;place-items:center;
+    font-family:var(--mono);font-size:11px;font-weight:600;transition:width .8s ease;color:var(--ink);
+    overflow:hidden;white-space:nowrap;padding:0 2px}
+  .seg-counted{left:0;background:var(--teal-soft)}
+  .seg-excluded{background:repeating-linear-gradient(45deg,#D3DEE8,#D3DEE8 6px,transparent 6px,transparent 12px);color:var(--muted)}
+  .seg-over{background:var(--amber-soft);color:var(--amber-deep)}
+  .threshold{position:absolute;top:-7px;bottom:-7px;width:2px;background:var(--navy);z-index:3}
+  .threshold::after{content:'Free laytime';position:absolute;top:-18px;
+    font-family:var(--mono);font-size:10px;color:var(--navy);white-space:nowrap}
+  .threshold.near-right::after{right:4px}
+  .threshold:not(.near-right)::after{left:50%;transform:translateX(-50%)}
+  .barkey{display:flex;gap:18px;margin-top:26px;font-family:var(--mono);font-size:11px;
+    color:var(--muted);flex-wrap:wrap}
+  .barkey span{display:flex;align-items:center;gap:6px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+  .verdict{margin-top:26px;border-radius:14px;padding:20px;border:1px solid var(--line);
+    background:var(--surface-2)}
+  .verdict.demurrage{border-color:#EBC79B;background:var(--amber-soft)}
+  .verdict.none{border-color:#A8D9CB;background:var(--teal-soft)}
+  .verdict.dispute{border-color:#E7B0AD;background:var(--red-soft)}
+  .verdict .vhead{display:flex;align-items:center;gap:10px;font-weight:650;font-size:16px}
+  .verdict .amt{font-family:var(--mono);font-size:32px;font-weight:680;margin:8px 0 4px}
+  .amt.demurrage{color:var(--amber)} .amt.none{color:var(--teal)} .amt.dispute{color:var(--red)}
+  .verdict .expl{font-family:var(--mono);font-size:12.5px;color:var(--ink);line-height:1.75;opacity:.85}
+  .txrow{display:flex;align-items:center;gap:8px;margin-top:14px;font-family:var(--mono);
+    font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .txrow code{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:3px 8px;color:var(--teal)}
+  .cache-note{margin-top:14px;font-family:var(--mono);font-size:11.5px;color:var(--teal);
+    display:flex;align-items:center;gap:6px}
+  .cache-note::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--teal)}
+  .idle{color:var(--faint);font-family:var(--mono);font-size:13px;text-align:center;padding:70px 20px;line-height:1.9}
+  .idle code{background:var(--surface-2);padding:2px 7px;border-radius:5px;color:var(--amber)}
+  .cursor::after{content:'▋';color:var(--amber);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){.seg,.voyage{transition:none}.cursor::after{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="anchor">⚓</span>
+      <h1>AnchorClaim</h1>
+      <span class="tag">Demurrage Audit · On-chain Settlement</span>
+    </div>
+    <div class="sub">Voyage Sentinel Agent · Python backend</div>
+  </header>
+
+  <div class="layout">
+    <aside class="rail">
+      <div class="rail-head">
+        <h2>Fleet</h2>
+        <button class="clear-cache" id="clearCache" title="Clear cached results">Clear cache</button>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="search" class="search" type="text" placeholder="Search vessel, IMO or port…" autocomplete="off">
+      </div>
+      <div class="fleet" id="fleet"></div>
+      <div class="no-results" id="noResults" style="display:none">No vessels match your search.</div>
+      <p class="hint">Pick a voyage, then run the audit to watch the agent parse the contract, cross-check AIS, compute demurrage and settle on-chain.</p>
+    </aside>
+
+    <main class="stage" id="stage">
+      <div class="idle" id="idle">← Select a voyage to begin</div>
+      <div id="detail" style="display:none"></div>
+    </main>
+  </div>
+</div>
+
+<script>
+const API = "";                 // same origin (Flask serves this page)
+let DATA = {};                  // voyageId -> list metadata
+let AUDIT = {};                 // voyageId -> full audit result
+let activeId = null, running = false;
+
+const BADGE = {
+  demurrage:{cls:"s-demurrage",text:"Demurrage"},
+  none:{cls:"s-none",text:"No demurrage"},
+  dispute:{cls:"s-dispute",text:"Dispute"},
+};
+const fleet = document.getElementById('fleet');
+const idle = document.getElementById('idle');
+const detail = document.getElementById('detail');
+
+function cardInner(v){
+  const badge = v.cached && v._verdict
+    ? `<span class="vs ${(BADGE[v._verdict]||BADGE.none).cls}" data-badge>${(BADGE[v._verdict]||BADGE.none).text}</span>`
+    : `<span class="vs s-loading" data-badge>Not run</span>`;
+  const cachedTag = v.cached ? `<div class="cached-dot">cached</div>` : ``;
+  return `<div>
+      <div class="vn">${v.vessel}</div>
+      <div class="vm">${v.imo} · ${v.port}</div>
+      ${cachedTag}
+    </div>
+    ${badge}`;
+}
+
+async function boot(){
+  try{
+    const r = await fetch(API+"/api/voyages");
+    if(!r.ok) throw new Error("api "+r.status);
+    const {voyages} = await r.json();
+    for(const v of voyages){
+      DATA[v.id]=v;
+      const b=document.createElement('button');
+      b.className='voyage'; b.dataset.id=v.id;
+      b.dataset.search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
+      // for already-cached voyages, pull the verdict to colour the badge (served instantly from disk)
+      if(v.cached){
+        try{ const res=await fetchAudit(v.id); v._verdict=res.verdict.type; }catch(e){}
+      }
+      b.innerHTML=cardInner(v);
+      b.onclick=()=>select(v.id);
+      fleet.appendChild(b);
+    }
+    wireSearch();
+    wireClearCache();
+  }catch(e){
+    idle.innerHTML=`Cannot reach the Python backend (${e.message}).<br><br>
+      Start it first:<br><code>cd backend &amp;&amp; pip install flask &amp;&amp; python server.py</code><br>
+      then open <code>http://localhost:8788</code>`;
+  }
+}
+
+function wireSearch(){
+  const box=document.getElementById('search');
+  const noRes=document.getElementById('noResults');
+  box.addEventListener('input',()=>{
+    const q=box.value.trim().toLowerCase();
+    let visible=0;
+    document.querySelectorAll('.voyage').forEach(el=>{
+      const match=!q || el.dataset.search.includes(q);
+      el.classList.toggle('hidden',!match);
+      if(match) visible++;
+    });
+    noRes.style.display = visible===0 ? 'block' : 'none';
+  });
+}
+
+function wireClearCache(){
+  document.getElementById('clearCache').addEventListener('click',async()=>{
+    try{
+      await fetch(API+"/api/cache",{method:"DELETE"});
+      AUDIT={};
+      // reset every card to "Not run"
+      document.querySelectorAll('.voyage').forEach(el=>{
+        const v=DATA[el.dataset.id]; v.cached=false; v._verdict=null;
+        el.innerHTML=cardInner(v);
+      });
+    }catch(e){/* ignore */}
+  });
+}
+
+async function fetchAudit(id, force){
+  if(AUDIT[id] && !force) return AUDIT[id];
+  const r = await fetch(API+"/api/audit/"+id+(force?"?refresh=1":""));
+  if(!r.ok) throw new Error("audit "+r.status);
+  AUDIT[id]=await r.json();
+  return AUDIT[id];
+}
+
+// mark a card as cached and colour its badge after a run
+function markCardCached(id, verdictType){
+  const v = DATA[id]; if(!v) return;
+  v.cached = true; v._verdict = verdictType;
+  const el = fleet.querySelector(`[data-id="${id}"]`);
+  if(el) el.innerHTML = cardInner(v);
+}
+
+const fmt = n => '$'+Number(n).toLocaleString('en-US');
+
+const STEP_TITLES = ['Parse charter party','Fetch AIS track','Cross-check port log vs AIS','Compute demurrage','Settle on-chain'];
+
+function select(id){
+  if (running) return;
+  activeId = id;
+  document.querySelectorAll('.voyage').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
+  idle.style.display='none'; detail.style.display='block';
+  const v = DATA[id];
+  detail.innerHTML = `
+    <div class="voyage-head">
+      <div>
+        <div class="vt">${v.vessel}</div>
+        <div class="vmeta">${id} · IMO ${v.imo} · ${v.port}</div>
+        <div class="contract">
+          <span>Freight <b>${fmt(v.freight)}</b></span>
+          <span>Deposit <b>${fmt(v.deposit)}</b></span>
+        </div>
+      </div>
+      <button class="run" id="runBtn">Run audit</button>
+    </div>
+    <div class="steps" id="steps"></div>
+    <div id="result"></div>`;
+  document.getElementById('runBtn').onclick = ()=>runAudit(id);
+  renderSteps(STEP_TITLES, -1);
+  document.getElementById('result').innerHTML='';
+}
+
+function renderSteps(titles, upto, failIdx=-1){
+  const wrap = document.getElementById('steps');
+  wrap.innerHTML = titles.map((t,i)=>{
+    let cls='step', mark=(i+1);
+    if (i<upto){cls+=' on done'; mark='✓'}
+    else if (i===upto){cls+=(i===failIdx)?' on fail':' on'; if(i===failIdx)mark='✕'}
+    return `<div class="${cls}" data-i="${i}"><div class="dot">${mark}</div>
+      <div><div class="title">${t}</div><div class="body" id="body-${i}"></div></div></div>`;
+  }).join('');
+}
+
+const wait = ms=>new Promise(r=>setTimeout(r,ms));
+async function type(el, text){
+  el.classList.add('cursor'); el.textContent='';
+  for (let i=0;i<text.length;i++){ el.textContent+=text[i]; if(i%2===0) await wait(6); }
+  el.classList.remove('cursor');
+}
+
+async function runAudit(id){
+  running=true;
+  const btn=document.getElementById('runBtn');
+  const isRerun = btn.textContent==='Re-run';
+  btn.disabled=true; btn.textContent = isRerun ? 'Re-running…' : 'Auditing…';
+  let R;
+  try{ R = await fetchAudit(id, isRerun); }
+  catch(e){ document.getElementById('result').innerHTML=`<div class="idle">Audit failed: ${e.message}</div>`; btn.disabled=false; running=false; return; }
+
+  // update the fleet card so this vessel now shows as cached
+  markCardCached(id, R.verdict.type);
+  // served from disk cache -> skip the step-by-step typing, show the result immediately
+  const fromCache = R._cached === true && !isRerun;
+
+  const c = R.contract, rc = R.receipt, ck = R.check, v = R.verdict;
+  const isDispute = v.type==='dispute';
+  const conds = (c.suspension_conditions||[]).join(', ') || 'none';
+
+  const bodies = [
+    `Laytime allowed: ${c.laytime_hours}h · Rate: ${fmt(c.demurrage_rate_usd_per_day)}/day\nSuspension clauses (from contract): ${conds}`,
+    `In-port hours (AIS): ${ck.ais_hours}h\nBerthed then departed, verified against port log`,
+    `Port log ${ck.sof_hours}h vs AIS ${ck.ais_hours}h\nDelta ${ck.delta_hours}h -> ${ck.consistent?'within tolerance, consistent':'over tolerance, CONFLICT'}`,
+    isDispute
+      ? `Halted: records inconsistent, cannot auto-settle`
+      : `Gross ${rc.gross_duration_hours}h - excluded ${rc.excluded_hours}h -> counted ${rc.counted_laytime_hours}h\nvs allowed ${c.laytime_hours}h -> excess ${rc.excess_time_hours}h`,
+    isDispute
+      ? `Not settled. Routed to manual review.`
+      : (R.settlement ? `Attestation generated, submitted to escrow contract\n${R.settlement.chain}` : `No demurrage - final balance released`),
+  ];
+
+  for (let i=0;i<STEP_TITLES.length;i++){
+    const failHere = (isDispute && i===2);
+    renderSteps(STEP_TITLES, i, failHere?2:-1);
+    if (fromCache){
+      document.getElementById('body-'+i).textContent = bodies[i];
+    } else {
+      await type(document.getElementById('body-'+i), bodies[i]);
+      await wait(280);
+    }
+    if (isDispute && i===2){
+      renderSteps(STEP_TITLES, 2, 2);
+      document.getElementById('body-2').textContent = bodies[2];
+      break;
+    }
+    if (i===3 && !isDispute) renderLaytime(R);
+  }
+  if (!isDispute) renderSteps(STEP_TITLES, STEP_TITLES.length, -1);
+  renderResult(R);
+  if (fromCache){
+    const note=document.createElement('div');
+    note.className='cache-note';
+    note.textContent='Served from cache — click Re-run to audit again.';
+    document.getElementById('result').appendChild(note);
+  }
+  btn.disabled=false; btn.textContent='Re-run'; running=false;
+}
+
+function renderLaytime(R){
+  const res=document.getElementById('result');
+  const c=R.contract, rc=R.receipt, v=R.verdict;
+  const laytime=c.laytime_hours, counted=rc.counted_laytime_hours, excluded=rc.excluded_hours;
+  const over = v.type==='demurrage'? rc.excess_time_hours : 0;
+  const total=Math.max(rc.gross_duration_hours, laytime+over);
+  const scale=100/total;
+  const wc=Math.min(counted,laytime)*scale, wover=over*scale, we=excluded*scale;
+  const thr=(laytime/total)*100;
+  res.innerHTML = `<div class="laytime">
+    <div class="bar">
+      <div class="seg seg-counted" id="s-counted" style="left:0;width:0%">${counted}h counted</div>
+      <div class="seg seg-over" id="s-over" style="left:${wc}%;width:0%">+${over}h</div>
+      <div class="seg seg-excluded" id="s-excl" style="left:${wc+wover}%;width:0%">${excluded}h excluded</div>
+      <div class="threshold ${thr>78?'near-right':''}" style="left:${thr}%"></div>
+    </div>
+    <div class="barkey">
+      <span><i class="sw" style="background:var(--teal-soft);border:1px solid #A8D9CB"></i>Counted laytime</span>
+      <span><i class="sw" style="background:var(--amber-soft);border:1px solid #EBC79B"></i>Excess (demurrage)</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(45deg,#D3DEE8,#D3DEE8 3px,transparent 3px,transparent 6px)"></i>Excluded time</span>
+    </div></div>`;
+  requestAnimationFrame(()=>{
+    document.getElementById('s-counted').style.width=wc+'%';
+    document.getElementById('s-over').style.width=wover+'%';
+    document.getElementById('s-excl').style.width=we+'%';
+  });
+}
+
+function renderResult(R){
+  const res=document.getElementById('result');
+  const v=R.verdict, rc=R.receipt, c=R.contract;
+  const block=document.createElement('div');
+  if (v.type==='dispute'){
+    block.className='verdict dispute';
+    block.innerHTML=`<div class="vhead">⚠ Data dispute — auto-settlement blocked</div>
+      <div class="amt dispute">HOLD</div>
+      <div class="expl">${v.reason}. Funds are not moved automatically; the case is routed to manual review to prevent settlement on falsified port records.</div>`;
+  } else if (v.type==='demurrage'){
+    block.className='verdict demurrage';
+    block.innerHTML=`<div class="vhead">Demurrage — auto-deducted</div>
+      <div class="amt demurrage">${fmt(v.amount_usd)}</div>
+      <div class="expl">Excess ${v.excess_hours}h. Deducted ${fmt(v.penalty)} from the charterer's deposit to the shipowner (capped at deposit ${fmt(R.escrow.deposit)}). Freight ${fmt(v.freight_to_owner)} paid in full to owner; remaining deposit ${fmt(v.refund_to_charterer)} refunded to charterer.</div>
+      ${txRow(R)}`;
+  } else {
+    block.className='verdict none';
+    block.innerHTML=`<div class="vhead">No demurrage — balance released</div>
+      <div class="amt none">$0</div>
+      <div class="expl">After deducting ${rc.excluded_hours}h of contractual suspension time, counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${c.laytime_hours}h. No penalty; deposit refunded in full.</div>
+      ${txRow(R)}`;
+  }
+  res.appendChild(block);
+}
+function txRow(R){
+  if(!R.settlement) return '';
+  const s=R.settlement;
+  const ev=s.evidence_hash || '';
+  return `<div class="txrow">Evidence hash <code>${ev.slice(0,22)}…</code> · ${s.chain}${s.mode==='mock'?' · (mock tx)':''}</div>`;
+}
+boot();
+</script>
+</body>
+</html>
