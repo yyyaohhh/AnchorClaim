@@ -458,6 +458,17 @@
   .bd-note{color:var(--faint);font-size:11px}
   .bd-row:last-child .bd-val{color:var(--amber);font-weight:700}
 
+  .evidence{margin-top:20px;border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;background:var(--surface);box-shadow:var(--shadow-sm)}
+  .ev-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font:700 13.5px var(--sans);color:var(--ink);margin-bottom:12px}
+  .ev-score{font:600 11px var(--mono);color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:4px 11px;white-space:nowrap}
+  .ev-row{display:grid;grid-template-columns:24px 150px 1fr;gap:12px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+  .ev-row:first-of-type{border-top:none}
+  .ev-icon{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 11px var(--sans);color:#fff}
+  .ev-icon.ok{background:var(--teal)} .ev-icon.warn{background:var(--gold)}
+  .ev-name{font-weight:600;color:var(--ink)}
+  .ev-note{color:var(--muted);font-family:var(--mono);font-size:11.5px;line-height:1.5}
+  .ev-gap{margin-top:12px;padding:10px 13px;background:var(--gold-soft);border:1px solid var(--gold);border-radius:9px;font:500 12px var(--mono);color:var(--gold);line-height:1.5}
+
   .idle{color:var(--faint);font-family:var(--mono);font-size:13px;text-align:center;padding:70px 20px;line-height:1.9}
   .idle code{background:var(--surface-2);padding:2px 8px;border-radius:6px;color:var(--accent)}
   .cursor::after{content:'▋';color:var(--accent);animation:blink 1s steps(1) infinite}
@@ -536,7 +547,7 @@
           <div class="ticket">
             <div class="ticket-head"><span class="ticket-tag">Settlement ticket</span><span class="ticket-live"><i></i>live</span></div>
             <div class="ticket-vessel"><b>MV Ocean Star</b></div>
-            <div class="ticket-route">Shanghai → Rotterdam</div>
+            <div class="ticket-route">Shanghai → Singapore</div>
             <div class="ticket-amount">$43,750<small> demurrage</small></div>
             <div class="ticket-bar"><span></span></div>
             <div class="ticket-meta"><span>parse → calculate → settle</span><span>2.1s</span></div>
@@ -550,7 +561,7 @@
 
     <section class="stat-band">
       <div class="stat reveal"><div class="stat-num" data-count="5">0</div><div class="stat-label">pipeline stages, fully instrumented</div></div>
-      <div class="stat reveal"><div class="stat-num" data-count="3">0</div><div class="stat-label">sample voyages across the North Sea</div></div>
+      <div class="stat reveal"><div class="stat-num" data-count="3">0</div><div class="stat-label">sample voyages across Asia-Pacific</div></div>
       <div class="stat reveal"><div class="stat-num" data-count="250" data-prefix="$" data-suffix="k">$0</div><div class="stat-label">auto-settle ceiling before human review</div></div>
       <div class="stat reveal"><div class="stat-num" data-count="100" data-suffix="%">0</div><div class="stat-label">on-chain &amp; verifiable</div></div>
     </section>
@@ -667,7 +678,7 @@
       <main class="stage" id="stage">
         <div id="mapView">
           <div class="map-head">
-            <div><div class="map-title">Fleet map — North Sea corridor</div><div class="map-sub">Rotterdam · Hamburg · Antwerp. Click a vessel to open its audit.</div></div>
+            <div><div class="map-title">Fleet map — Asia-Pacific corridor</div><div class="map-sub">Singapore · Hong Kong · Tokyo. Click a vessel to open its audit.</div></div>
             <div class="legend">
               <span><i style="background:var(--amber)"></i>Demurrage</span>
               <span><i style="background:var(--teal)"></i>No demurrage</span>
@@ -783,20 +794,20 @@ function statusOf(v){
 
 /* ---------------- Ports / map ---------------- */
 const PORTS = {
-  "Port of Rotterdam": {x:265, y:225, label:"Rotterdam"},
-  "Port of Hamburg":   {x:470, y:170, label:"Hamburg"},
-  "Port of Antwerp":   {x:215, y:320, label:"Antwerp"},
+  "Port of Singapore": {x:140, y:378, label:"Singapore"},
+  "Port of Hong Kong": {x:420, y:250, label:"Hong Kong"},
+  "Port of Tokyo":     {x:620, y:112, label:"Tokyo"},
 };
-function portPos(name){ return PORTS[name] || {x:360, y:230, label:(name||'').replace('Port of ','')}; }
+function portPos(name){ return PORTS[name] || {x:360, y:220, label:(name||'').replace('Port of ','')}; }
 
 const ROUTES = [
-  {d:"M0,300 C 55,296 100,288 140,280 C 185,271 230,254 265,225", ship:"var(--accent)", dur:"19s", begin:"0s"},
-  {d:"M265,225 Q 360,150 470,170", ship:"var(--amber)", dur:"24s", begin:"2.5s"},
-  {d:"M215,320 Q 240,275 265,225", ship:"var(--teal)", dur:"21s", begin:"5s"},
+  {d:"M0,390 C 45,386 95,382 140,378", ship:"var(--accent)", dur:"19s", begin:"0s"},
+  {d:"M140,378 C 205,332 320,272 420,250", ship:"var(--teal)", dur:"25s", begin:"2.5s"},
+  {d:"M420,250 C 475,205 555,150 620,112", ship:"var(--amber)", dur:"26s", begin:"5s"},
 ];
-const COAST = "M0,460 L0,302 C 20,296 32,278 56,280 C 76,282 86,260 110,265 C 132,270 142,289 165,287 C 186,285 195,265 215,268 C 235,271 246,249 270,252 C 296,255 316,236 342,244 C 372,252 382,227 412,229 C 448,231 456,211 486,214 C 520,218 546,200 586,205 C 626,210 662,197 700,201 L700,460 Z";
-const ISLE1 = "M44,92 C 62,70 96,67 118,84 C 136,100 128,130 104,135 C 80,140 50,131 38,110 Z";
-const ISLE2 = "M622,64 C 652,56 680,63 690,86 C 697,105 680,120 656,119 C 630,118 618,101 620,80 Z";
+const COAST = "M0,0 L0,270 C 40,266 62,248 98,252 C 132,256 158,272 194,270 C 228,268 252,250 286,254 C 320,258 352,274 388,272 C 412,270 428,256 446,254 C 470,264 502,274 540,268 C 580,262 640,266 700,260 L700,0 Z";
+const ISLE1 = "M598,76 C 612,96 614,138 604,168 C 598,190 626,194 634,172 C 642,146 644,114 634,88 C 630,78 606,72 598,76 Z";
+const ISLE2 = "M28,460 L50,412 C 82,398 108,400 126,402 L136,394 C 146,388 152,376 140,375 C 122,374 86,380 40,390 L28,460 Z";
 
 function drawMapBase(){
   const svg=document.getElementById('mapSvg');
@@ -821,11 +832,14 @@ function drawMapBase(){
     <path d="${ISLE1}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
     <path class="coastfoam" d="${ISLE2}"/>
     <path d="${ISLE2}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
-    <text x="150" y="450" class="coord">2°E</text>
-    <text x="400" y="450" class="coord">5°E</text>
-    <text x="640" y="450" class="coord">8°E</text>
-    <text x="8" y="108" class="coord">54°N</text>
-    <text x="8" y="230" class="coord">53°N</text>
+    <path class="coastfoam" d="M500,306 C 512,298 526,300 532,312 C 538,324 528,336 516,334 C 504,332 496,318 500,306 Z"/>
+    <path d="M500,306 C 512,298 526,300 532,312 C 538,324 528,336 516,334 C 504,332 496,318 500,306 Z" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
+    <text x="560" y="430" class="port-label" opacity=".55" text-anchor="end">WESTERN PACIFIC</text>
+    <text x="150" y="450" class="coord">105°E</text>
+    <text x="400" y="450" class="coord">120°E</text>
+    <text x="640" y="450" class="coord">135°E</text>
+    <text x="8" y="108" class="coord">35°N</text>
+    <text x="8" y="230" class="coord">15°N</text>
     <g class="compass" transform="translate(646,74)">
       <circle r="15" fill="var(--surface)" fill-opacity=".7" stroke="var(--line-strong)"/>
       <path d="M0,-11 L4,-2 L0,-5 L-4,-2 Z" fill="var(--accent)"/>
@@ -1261,7 +1275,7 @@ function calcBreakdown(R){
   const conds=(c.suspension_conditions||[]).join(', ');
   const rows=[
     ['Gross time in port', `${rc.gross_duration_hours}h`, 'berthing → departure'],
-    ['− Excluded (per contract)', `${rc.excluded_hours}h`, conds?`clauses: ${conds}`:'no exclusions applied'],
+    ['− Excluded (evidence-corroborated)', `${rc.excluded_hours}h`, conds?`clauses: ${conds}`:'no exclusions applied'],
     ['= Counted laytime', `${rc.counted_laytime_hours}h`, ''],
     ['− Allowed laytime', `${c.laytime_hours}h`, 'from charter party'],
     ['= Excess time', `${rc.excess_time_hours}h`, ''],
@@ -1281,6 +1295,29 @@ function countUp(el, target){
   requestAnimationFrame(tick);
 }
 
+function evidencePanel(R){
+  const ev=R.evidence; if(!ev) return '';
+  const S=ev.sources||{};
+  const rows=[
+    ['AIS', !!(R.check && R.check.consistent), R.check?`in-port ${R.check.ais_hours}h vs port log ${R.check.sof_hours}h`:'' ],
+    ['Weather', !!(S.weather && S.weather.ok), S.weather ? (S.weather.checked ? `${S.weather.corroborated.length}/${S.weather.checked} weather suspensions corroborated` : 'no weather claims') : '' ],
+    ['Satellite', !!(S.satellite && S.satellite.ok), S.satellite ? (S.satellite.note||'') : '' ],
+    ['Port Community', !!(S.port_community && S.port_community.ok), S.port_community ? `official record delta ${S.port_community.delta_hours}h` : '' ],
+    ['NOR', !!(S.nor && S.nor.ok), S.nor ? (S.nor.note||'') : '' ],
+    ['News / notices', !!(S.news && S.news.ok), S.news ? (S.news.checked ? `${S.news.corroborated.length}/${S.news.checked} claims found in notices` : 'no strike/closure claims') : '' ],
+  ];
+  const okCount=rows.filter(r=>r[1]).length;
+  const body=rows.map(r=>`<div class="ev-row"><span class="ev-icon ${r[1]?'ok':'warn'}">${r[1]?'✓':'!'}</span><span class="ev-name">${r[0]}</span><span class="ev-note">${r[2]||''}</span></div>`).join('');
+  const gaps=(ev.unsupported_claims||[]).length ? `<div class="ev-gap">⚠ ${ev.unsupported_claims.length} unsupported claim(s): ${ev.unsupported_claims.join('; ')}</div>` : '';
+  return `<div class="evidence"><div class="ev-head">Multi-source verification<span class="ev-score">${okCount}/${rows.length} sources corroborate</span></div>${body}${gaps}</div>`;
+}
+function reasoningPanel(R){
+  const rs=R.reasoning; if(!rs || !(rs.suspension_decisions||[]).length) return '';
+  const modeLabel = rs.mode==='llm' ? 'reasoned by LLM' : 'deterministic fallback (no LLM)';
+  const rows = rs.suspension_decisions.map(d=>`<div class="ev-row"><span class="ev-icon ${d.corroborated?'ok':'warn'}">${d.corroborated?'✓':'!'}</span><span class="ev-name">${d.reason}</span><span class="ev-note">${d.corroborated?'deducted':'NOT deducted'} — ${d.explanation}</span></div>`).join('');
+  const sofNote = rs.ais_sof_note ? `<div class="ev-gap">AIS/SoF timeline check: ${rs.ais_sof_note}</div>` : '';
+  return `<div class="evidence"><div class="ev-head">Suspension reasoning<span class="ev-score">${modeLabel}</span></div>${rows}${sofNote}</div>`;
+}
 function renderResult(R){
   const res=document.getElementById('result');
   const v=R.verdict, rc=R.receipt;
@@ -1307,6 +1344,8 @@ function renderResult(R){
     block.innerHTML=`<div class="vhead">No demurrage — balance released</div><div class="amt none">$0</div>
       <div class="expl">After deducting ${rc.excluded_hours}h of contractual suspension time, counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${R.contract.laytime_hours}h. No penalty; deposit refunded in full.</div>${txRow(R)}`;
   }
+  const ep=evidencePanel(R); if(ep){ const d=document.createElement('div'); d.innerHTML=ep; res.appendChild(d.firstElementChild); }
+  const rp=reasoningPanel(R); if(rp){ const d=document.createElement('div'); d.innerHTML=rp; res.appendChild(d.firstElementChild); }
   res.appendChild(block);
   const amtEl=block.querySelector('.amt[data-animate]');
   if(amtEl) countUp(amtEl, parseFloat(amtEl.dataset.animate));

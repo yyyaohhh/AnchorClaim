@@ -1,11 +1,14 @@
 """
-Full audit pipeline: parse contract -> calculate demurrage -> settle on-chain.
-Exposes audit_voyage(), returning a structured result consumed by both the API and the CLI.
+Full audit pipeline: parse contract -> gather evidence -> reason -> calculate demurrage
+-> settle on-chain. Exposes audit_voyage(), returning a structured result consumed by
+both the API and the CLI.
 
 Stages:
-- step1 parses the charter party into structured JSON
-- step2 computes demurrage from that JSON and deducts contractual suspension time
-- step3 settles the result on-chain
+- step1  parses the charter party into structured JSON
+- step2b gathers six independent evidence sources, then reasons over them to decide
+         which of the charterer's claimed suspensions actually happened
+- step2  computes demurrage, deducting only the suspensions step2b corroborated
+- step3  settles the result on-chain
 """
 
 from __future__ import annotations
@@ -14,7 +17,9 @@ import json
 
 from step1_parse_contract import parse_contract
 from step2_calculate import calculate_demurrage, cross_check_ais
+from step2b_reason_evidence import reason_evidence
 from step3_settle_onchain import settle_on_chain
+from evidence_sources import gather_evidence
 
 
 # Thresholds for the human-review gate.
@@ -22,7 +27,7 @@ CONFIDENCE_THRESHOLD = 0.6      # any parsed field below this needs a human to c
 AUTO_SETTLE_CEILING_USD = 250000  # settlements above this always route to human approval
 
 
-def _review_flags(contract, penalty_usd):
+def _review_flags(contract, penalty_usd, evidence=None):
     """Decide whether this audit must pause for human review, and why."""
     reasons = []
     conf = contract.get("confidence", {})
@@ -31,6 +36,9 @@ def _review_flags(contract, penalty_usd):
         reasons.append("low parser confidence on: " + ", ".join(low))
     if penalty_usd > AUTO_SETTLE_CEILING_USD:
         reasons.append(f"amount ${penalty_usd:,.0f} exceeds auto-settle ceiling ${AUTO_SETTLE_CEILING_USD:,.0f}")
+    if evidence:
+        for claim in evidence.get("unsupported_claims", []):
+            reasons.append("evidence gap — " + claim)
     return reasons
 
 
@@ -47,8 +55,21 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
     contract = parse_contract(contract_text)
     steps.append({"name": "parse_contract", "output": contract})
 
-    # --- Step 2: calculate demurrage (with suspension deduction) ---
-    receipt = calculate_demurrage(contract, voyage["ais_port_log"], voyage.get("suspension_events"))
+    # --- Multi-source evidence: gather weather, satellite, PCS, NOR, news signals ---
+    evidence = gather_evidence(voyage)
+    steps.append({"name": "evidence", "output": evidence})
+
+    # --- Step 2b: reason over the evidence to decide which claimed suspensions ---
+    # actually happened; only those reduce counted laytime in step 2.
+    reasoning = reason_evidence(contract, voyage, evidence["sources"])
+    steps.append({"name": "reason_evidence", "output": reasoning})
+    corroborated_events = [
+        {"reason": d["reason"], "start": d["start"], "end": d["end"]}
+        for d in reasoning["suspension_decisions"] if d["corroborated"]
+    ]
+
+    # --- Step 2: calculate demurrage (deducting only corroborated suspensions) ---
+    receipt = calculate_demurrage(contract, voyage["ais_port_log"], corroborated_events)
     steps.append({"name": "calculate", "output": receipt})
 
     # --- Cross-check: port-log (SoF) gross hours vs AIS in-port hours ---
@@ -66,6 +87,8 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
         "contract": contract,
         "receipt": receipt,
         "check": check,
+        "evidence": evidence,
+        "reasoning": reasoning,
         "escrow": voyage["escrow"],
     }
 
@@ -94,7 +117,7 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
     }
 
     # --- Human-in-the-loop gate: low confidence or large amount -> pause for review ---
-    flags = _review_flags(contract, penalty)
+    flags = _review_flags(contract, penalty, evidence)
     if flags:
         result["verdict"] = {**base_verdict, "type": "needs_review", "settled": False, "review_reasons": flags}
         return result
