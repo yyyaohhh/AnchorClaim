@@ -1155,6 +1155,20 @@ const PORT_SHORT = {
   "Port of Shanghai":"Shanghai","Port of Busan":"Busan","Port of Kaohsiung":"Kaohsiung",
   "Port of Manila":"Manila","Port of Osaka":"Osaka","Port of Shenzhen":"Shenzhen","Port Klang":"Klang",
 };
+// Hand-tuned fractional nudges applied on top of the projection so each pin sits
+// exactly on its city in the uploaded texture. Signs: +x = right, +y = down.
+const PORT_SHIFT = {
+  "Singapore":{dx:0.05,  dy:0.00},
+  "Klang":    {dx:0.05,  dy:0.00},
+  "Manila":   {dx:-0.10, dy:-0.10},
+  "Hong Kong":{dx:-0.10, dy:-0.10},
+  "Shenzhen": {dx:-0.10, dy:-0.10},
+  "Kaohsiung":{dx:-0.10, dy:-0.10},
+  "Shanghai": {dx:-0.10, dy:-0.10},
+  "Busan":    {dx:-0.10, dy:-0.10},
+  "Osaka":    {dx:-0.10, dy:-0.10},
+  "Tokyo":    {dx:-0.10, dy:-0.10},
+};
 
 function buildMap(){
   const mapEl = document.getElementById('map'); if(!mapEl) return;
@@ -1262,7 +1276,8 @@ function renderMapMarkers(){
   let html='';
   agg.forEach((m,name)=>{
     const [fx,fy] = worldXY(m.lat,m.lng);
-    const x=(fx*100).toFixed(3), y=(fy*100).toFixed(3);
+    const sh = PORT_SHIFT[PORT_SHORT[name]||name] || {dx:0,dy:0};
+    const x=((fx + sh.dx)*100).toFixed(3), y=((fy + sh.dy)*100).toFixed(3);
     const cls = m.worst==='unrun' ? '' : ' worst-'+m.worst;
     const sub = m.count ? (m.count+' voyage'+(m.count>1?'s':'')) : 'click to open';
     html += `<button class="gp${cls}" data-port="${name}" title="${name} · ${fmtCoord([m.lat,m.lng])} · ${sub}" style="left:${x}%;top:${y}%">
