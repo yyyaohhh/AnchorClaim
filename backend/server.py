@@ -12,6 +12,7 @@ import os
 import sys
 import json
 import hashlib
+import tempfile
 from flask import Flask, jsonify, send_from_directory, request
 
 # make agent modules importable
@@ -31,9 +32,34 @@ app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
 # Results are cached to disk keyed by a hash of the voyage inputs, so an already
 # analyzed vessel is served instantly and survives server restarts. The key
 # includes the input hash, so editing a voyage's contract invalidates its entry.
+#
+# Serverless runtimes (Vercel, AWS Lambda, ...) expose a read-only filesystem
+# with only the system temp dir writable. Writing under the project root would
+# raise OSError at import time and 500 every /api request, so the cache dir is
+# chosen defensively: .cache locally, transparently falling back to /tmp when
+# the project directory cannot be written.
 # ---------------------------------------------------------------------------
-CACHE_DIR = os.path.join(ROOT, ".cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
+def _resolve_cache_dir():
+    override = os.environ.get("ANCHORCLAIM_CACHE_DIR")
+    if override:
+        return override
+    local = os.path.join(ROOT, ".cache")
+    try:
+        os.makedirs(local, exist_ok=True)
+        # makedirs(exist_ok=True) does not fail on an existing read-only dir,
+        # so probe writability explicitly before committing to it.
+        probe = os.path.join(local, ".probe")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write("ok")
+        os.remove(probe)
+        return local
+    except OSError:
+        fallback = os.path.join(tempfile.gettempdir(), "anchorclaim_cache")
+        os.makedirs(fallback, exist_ok=True)
+        return fallback
+
+
+CACHE_DIR = _resolve_cache_dir()
 
 
 def _input_hash(voyage_id):
@@ -70,6 +96,7 @@ def index():
 
 
 @app.route("/api/voyages")
+@app.route("/voyages")
 def voyages():
     out = []
     for vid, v in SAMPLE_VOYAGES.items():
@@ -87,6 +114,7 @@ def voyages():
 
 
 @app.route("/api/audit/<voyage_id>")
+@app.route("/audit/<voyage_id>")
 def audit(voyage_id):
     if voyage_id not in SAMPLE_VOYAGES:
         return jsonify({"error": "voyage not found"}), 404
@@ -109,6 +137,7 @@ def audit(voyage_id):
 
 
 @app.route("/api/audit/<voyage_id>", methods=["POST"])
+@app.route("/audit/<voyage_id>", methods=["POST"])
 def audit_edited(voyage_id):
     """Re-audit a voyage with a contract edited live in the UI.
 
@@ -131,13 +160,21 @@ def audit_edited(voyage_id):
 
 
 @app.route("/api/cache", methods=["DELETE"])
+@app.route("/cache", methods=["DELETE"])
 def clear_cache():
     """Clear all cached audit results."""
     removed = 0
-    for fn in os.listdir(CACHE_DIR):
+    try:
+        entries = os.listdir(CACHE_DIR)
+    except OSError:
+        entries = []
+    for fn in entries:
         if fn.endswith(".json"):
-            os.remove(os.path.join(CACHE_DIR, fn))
-            removed += 1
+            try:
+                os.remove(os.path.join(CACHE_DIR, fn))
+                removed += 1
+            except OSError:
+                pass
     return jsonify({"cleared": removed})
 
 

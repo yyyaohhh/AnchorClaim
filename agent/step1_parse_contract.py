@@ -104,13 +104,18 @@ Return raw JSON string only.
         print("[step1] ollama not found — using regex mock parser on the actual contract text")
         return _mock_parse(contract_text)
 
-    response = ollama.chat(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        format="json",  # ask Ollama to emit JSON directly, reducing noise
-    )
-    raw = response["message"]["content"]
-    parsed = _extract_json(raw)
+    try:
+        response = ollama.chat(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            format="json",  # ask Ollama to emit JSON directly, reducing noise
+        )
+        raw = response["message"]["content"]
+        parsed = _extract_json(raw)
+    except Exception as e:  # noqa: BLE001 — server absent/unreachable: degrade gracefully
+        print(f"[step1] ollama call failed ({e}) — falling back to regex mock parser")
+        return _mock_parse(contract_text)
+
     # ensure a confidence block exists even if the model omitted it
     parsed.setdefault("confidence", {
         "laytime_hours": 0.9, "demurrage_rate_usd_per_day": 0.9,

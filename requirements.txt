@@ -1,8 +1,10 @@
 # Core (required to run the UI + API)
 flask>=2.0
 
-# Optional — enable real contract parsing
-ollama
+# Optional — enable real contract parsing (local only; not needed on Vercel).
+# Uncomment to install, then run `ollama pull qwen2.5`.
+# ollama
 
-# Optional — enable real on-chain settlement
-web3
+# Optional — enable real on-chain settlement (local only; not needed on Vercel).
+# Uncomment to install.
+# web3
