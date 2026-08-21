@@ -1,7 +1,7 @@
 """
 Three sample voyages for the demo UI.
 Each has: raw contract text (parsed by step 1), an AIS/port log, and suspension events.
-Designed to show three outcomes: demurrage, no-demurrage-after-exclusions, and dispute.
+Designed to show two signed outcomes: demurrage and no-demurrage-after-exclusions.
 """
 
 SAMPLE_VOYAGES = {
@@ -92,16 +92,16 @@ Demurrage at USD 30000 per day or pro rata.
 EXCEPTIONS AND SUSPENSION:
 Time lost due to bad weather shall not count as laytime.
 """,
-        # Port log claims only 40h, but AIS shows the vessel was berthed 79h -> dispute
+        # 64h gross vs 48h laytime -> 16h excess, demurrage (signed, no dispute)
         "ais_port_log": {
             "vessel_name": "MV Delta Spirit",
             "arrival_anchorage": "2026/08/02 00:00:00",
             "nor_tendered": "2026/08/02 00:00:00",
             "berthing_time": "2026/08/02 02:00:00",
-            "departure_time": "2026/08/03 18:00:00",  # 40h gross (suspiciously low)
+            "departure_time": "2026/08/04 18:00:00",  # 64h gross
         },
         "suspension_events": [],
         "escrow": {"freight": 480000, "deposit": 120000},
-        "ais_hours": 79.0,  # AIS disagrees with port log -> flagged
+        "ais_hours": 64.0,  # signed: AIS agrees with the port log
     },
 }

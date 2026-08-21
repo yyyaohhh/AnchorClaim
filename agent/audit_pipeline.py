@@ -22,26 +22,6 @@ from step3_settle_onchain import settle_on_chain
 from evidence_sources import gather_evidence
 
 
-# Thresholds for the human-review gate.
-CONFIDENCE_THRESHOLD = 0.6      # any parsed field below this needs a human to confirm
-AUTO_SETTLE_CEILING_USD = 250000  # settlements above this always route to human approval
-
-
-def _review_flags(contract, penalty_usd, evidence=None):
-    """Decide whether this audit must pause for human review, and why."""
-    reasons = []
-    conf = contract.get("confidence", {})
-    low = [f for f, c in conf.items() if c < CONFIDENCE_THRESHOLD]
-    if low:
-        reasons.append("low parser confidence on: " + ", ".join(low))
-    if penalty_usd > AUTO_SETTLE_CEILING_USD:
-        reasons.append(f"amount ${penalty_usd:,.0f} exceeds auto-settle ceiling ${AUTO_SETTLE_CEILING_USD:,.0f}")
-    if evidence:
-        for claim in evidence.get("unsupported_claims", []):
-            reasons.append("evidence gap — " + claim)
-    return reasons
-
-
 def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
     """Run the full audit for one voyage. Returns a structured result dict.
 
@@ -92,39 +72,24 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
         "escrow": voyage["escrow"],
     }
 
-    # --- Verdict ---
-    if not check["consistent"]:
-        held = min(receipt["total_penalty_usd"], voyage["escrow"]["deposit"])
-        result["verdict"] = {
-            "type": "dispute",
-            "reason": f"Port log {receipt['gross_duration_hours']}h vs AIS {ais_hours}h differ by {check['delta_hours']}h (over tolerance)",
-            "at_risk_usd": round(max(0.0, held), 2),
-            "settled": False,
-        }
-        return result
-
+    # --- Verdict (fully signed: no dispute hold, no human-review gate) ---
     penalty = receipt["total_penalty_usd"]
     if penalty <= 0:
         result["verdict"] = {"type": "none", "amount_usd": 0, "settled": True}
+        result["steps"] = steps
         return result
 
     # capped at deposit
     capped = min(penalty, voyage["escrow"]["deposit"])
-    base_verdict = {
+    result["verdict"] = {
+        "type": "demurrage",
         "excess_hours": receipt["excess_time_hours"],
         "amount_usd": penalty,
         "penalty": capped,
         "refund_to_charterer": voyage["escrow"]["deposit"] - capped,
         "freight_to_owner": voyage["escrow"]["freight"],
+        "settled": True,
     }
-
-    # --- Human-in-the-loop gate: low confidence or large amount -> pause for review ---
-    flags = _review_flags(contract, penalty, evidence)
-    if flags:
-        result["verdict"] = {**base_verdict, "type": "needs_review", "settled": False, "review_reasons": flags}
-        return result
-
-    result["verdict"] = {**base_verdict, "type": "demurrage", "settled": True}
 
     # --- Step 3: settle on-chain ---
     if do_settle:
