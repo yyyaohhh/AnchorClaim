@@ -6,3 +6,5 @@ venv/
 .DS_Store
 node_modules/
 .cache/
+.npm-cache/
+.vercel/

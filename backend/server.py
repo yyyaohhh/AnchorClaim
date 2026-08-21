@@ -13,6 +13,7 @@ import sys
 import json
 import hashlib
 import tempfile
+from urllib.parse import parse_qs, urlencode
 from flask import Flask, jsonify, send_from_directory, request
 
 # make agent modules importable
@@ -25,6 +26,32 @@ from samples import SAMPLE_VOYAGES            # noqa: E402
 
 FRONTEND = os.path.join(ROOT, "frontend")
 app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
+
+
+class _VercelPathMiddleware:
+    """Transparently restore the /api/<sub> path on Vercel.
+
+    vercel.json rewrites ``/api/<sub>`` to ``/api/index.py?__path__=<sub>`` so
+    the single serverless function is reached. That rewritten destination is what
+    the WSGI layer sees as PATH_INFO (``/api/index.py``), so this middleware reads
+    ``__path__`` back out of the query string and rebuilds the original path
+    before Flask routing runs. Locally (no ``__path__``) it is a no-op.
+    """
+
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path.rstrip("/") in ("/api/index.py", "/api/index"):
+            params = parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
+            sub = (params.pop("__path__", None) or [""])[0]
+            environ["QUERY_STRING"] = urlencode(params, doseq=True)
+            environ["PATH_INFO"] = "/api/" + sub.lstrip("/") if sub else "/api"
+        return self.wsgi_app(environ, start_response)
+
+
+app.wsgi_app = _VercelPathMiddleware(app.wsgi_app)
 
 # ---------------------------------------------------------------------------
 # Persistent audit cache.
