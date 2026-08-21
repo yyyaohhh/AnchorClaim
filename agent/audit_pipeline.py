@@ -94,9 +94,11 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
 
     # --- Verdict ---
     if not check["consistent"]:
+        held = min(receipt["total_penalty_usd"], voyage["escrow"]["deposit"])
         result["verdict"] = {
             "type": "dispute",
             "reason": f"Port log {receipt['gross_duration_hours']}h vs AIS {ais_hours}h differ by {check['delta_hours']}h (over tolerance)",
+            "at_risk_usd": round(max(0.0, held), 2),
             "settled": False,
         }
         return result

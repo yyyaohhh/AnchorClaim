@@ -1,5 +1,5 @@
 """
-Fleet-scale overview.
+Fleet-scale overview + a fully-auditable generated fleet.
 
 The single-voyage demo drills into a handful of sample voyages one at a time. A
 production deployment runs the whole book at once, so this module generates a
@@ -7,12 +7,13 @@ deterministic fleet of dozens of voyages and summarises the result — total
 exposure, disputes, and a per-vessel traffic-light (demurrage / normal /
 dispute) for the fleet-overview screen.
 
-The arithmetic reuses the exact engine used for single voyages (step2_calculate
-:: calculate_demurrage + cross_check_ais), so the numbers are not decorative:
-each vessel's exposure is the same formula the audit would produce. Only the
-LLM parse and the multi-source evidence fetch are skipped here (they are the
-slow, optional layers) — the fleet view is a fast, offline, fully deterministic
-roll-up of the book.
+Each generated voyage carries a real `contract_text` plus the exact structured
+fields the audit engine consumes, so any fleet voyage can also be drilled into
+from the command center and run through the FULL pipeline. Because the fleet
+voyages have no suspension claims, the deterministic roll-up and the full
+pipeline produce identical numbers (the same `calculate_demurrage` +
+`cross_check_ais` math), so the overview total always reconciles with the
+single-voyage drill-down.
 """
 
 from __future__ import annotations
@@ -24,12 +25,19 @@ from step2_calculate import calculate_demurrage, cross_check_ais
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 
-# Asia-Pacific trade lanes (the three map ports plus the wider network).
-PORTS = [
-    "Port of Singapore", "Port of Hong Kong", "Port of Tokyo",
-    "Port of Shanghai", "Port of Busan", "Port of Kaohsiung",
-    "Port of Manila", "Port of Osaka", "Port of Shenzhen", "Port Klang",
-]
+# Port name -> [lat, lng] (real coordinates, used by both the map and the drill-down).
+PORTS = {
+    "Port of Singapore": [1.29, 103.82],
+    "Port of Hong Kong": [22.30, 114.17],
+    "Port of Tokyo": [35.68, 139.68],
+    "Port of Shanghai": [31.23, 121.47],
+    "Port of Busan": [35.18, 129.08],
+    "Port of Kaohsiung": [22.62, 120.31],
+    "Port of Manila": [14.60, 120.98],
+    "Port of Osaka": [34.69, 135.50],
+    "Port of Shenzhen": [22.54, 114.06],
+    "Port Klang": [3.03, 101.45],
+}
 
 PREFIXES = [
     "Ocean", "Nord", "Pacific", "Golden", "Silver", "Iron", "Jade",
@@ -42,18 +50,34 @@ SUFFIXES = [
     "Voyager", "Crown", "Eagle", "Rise", "Light",
 ]
 
-LADEN_PORTS = "Port of Shanghai"
-
 
 def _fmt(dt: datetime) -> str:
     return dt.strftime(TIME_FORMAT)
 
 
-def _build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
+def _contract_text(vessel: str, port: str, laytime: int, rate: int) -> str:
+    """Render a raw charter-party that the parser will read back identically."""
+    return f"""CHARTER PARTY AGREEMENT SUMMARY
+Vessel Name: {vessel}
+Port of Loading: Port of Shanghai
+Port of Discharge: {port}
+
+LAYTIME CLAUSE:
+Total allowed laytime for loading and discharging operations shall be {laytime} hours in total.
+
+DEMURRAGE CLAUSE:
+If the vessel is delayed beyond the allowed laytime, the charterer shall pay demurrage at USD {rate} per day or pro rata.
+
+EXCEPTIONS AND SUSPENSION:
+Time lost due to bad weather, strikes, port closures, or force majeure events shall not count as laytime.
+"""
+
+
+def build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
     """Generate a deterministic, realistic-looking fleet with a known mix of outcomes.
 
-    Outcome targets: ~57% demurrage, ~31% clear, and the remainder disputes,
-    shuffled deterministically so the fleet is stable across requests.
+    Outcome targets: ~57% demurrage, ~31% clear, the remainder disputes, shuffled
+    deterministically so the fleet is stable across requests.
     """
     rng = random.Random(seed)
 
@@ -64,6 +88,7 @@ def _build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
 
     base = datetime(2026, 8, 2, 0, 0, 0)
     used = set()
+    port_names = list(PORTS.keys())
     fleet = []
     for i, target in enumerate(targets):
         while True:
@@ -73,43 +98,33 @@ def _build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
                 break
 
         imo = 9120000 + (i * 131) % 79000
-        port = PORTS[i % len(PORTS)]
+        port = port_names[i % len(port_names)]
         laytime = rng.choice([36, 48, 60, 72, 96, 120])
         rate = rng.choice([18000, 22000, 24000, 28000, 32000, 36000, 40000])
         freight = rng.choice([320000, 420000, 520000, 620000, 720000, 850000])
         deposit = int(freight * rng.choice([0.18, 0.20, 0.22, 0.25]))
-
-        # A corroborated suspension window reduces counted laytime for some voyages.
-        excluded = 0.0
-        if target in ("demurrage", "none") and rng.random() < 0.55:
-            excluded = float(rng.randint(4, 18))
 
         excess = 0.0
         if target == "demurrage":
             excess = float(rng.randint(8, 60))
         elif target == "dispute":
             excess = float(rng.randint(0, 24))  # some disputes also carry exposure
+        # Keep the accrued penalty within the escrow deposit so the roll-up total
+        # reconciles exactly with the single-voyage drill-down.
+        max_excess = int(deposit * 24.0 / rate)
+        excess = min(excess, float(max_excess))
 
-        gross = laytime + excess + excluded
+        gross = laytime + excess
 
         berth = base + timedelta(days=i, hours=rng.randint(2, 9))
         depart = berth + timedelta(hours=gross)
         arrival = berth - timedelta(hours=rng.randint(3, 12))
 
-        suspensions = []
-        if excluded > 0:
-            reason = rng.choice(["bad weather", "port congestion", "strike"])
-            s = berth + timedelta(hours=4)
-            suspensions = [{
-                "reason": reason,
-                "start": _fmt(s),
-                "end": _fmt(s + timedelta(hours=excluded)),
-            }]
-
         ais_hours = gross
         if target == "dispute":
             ais_hours = gross + rng.randint(10, 40)  # AIS disagrees with the SoF
 
+        lat, lng = PORTS[port]
         contract = {
             "laytime_hours": laytime,
             "demurrage_rate_usd_per_day": rate,
@@ -135,10 +150,12 @@ def _build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
             "vessel": name,
             "imo": str(imo),
             "port": port,
-            "target": target,
+            "lat": lat,
+            "lng": lng,
+            "contract_text": _contract_text(name, port, laytime, rate),
             "contract": contract,
             "ais_port_log": ais_port_log,
-            "suspension_events": suspensions,
+            "suspension_events": [],
             "escrow": {"freight": freight, "deposit": deposit},
             "ais_hours": ais_hours,
         })
@@ -148,7 +165,7 @@ def _build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
 
 def fleet_overview() -> dict:
     """Run the engine's arithmetic over the whole fleet and return a roll-up."""
-    fleet = _build_fleet()
+    fleet = build_fleet()
 
     voyages = []
     status_counts = {"demurrage": 0, "none": 0, "dispute": 0}
@@ -198,6 +215,8 @@ def fleet_overview() -> dict:
             "vessel": v["vessel"],
             "imo": v["imo"],
             "port": v["port"],
+            "lat": v["lat"],
+            "lng": v["lng"],
             "status": status,
             "amount_usd": amount,
             "excess_hours": round(excess, 2),

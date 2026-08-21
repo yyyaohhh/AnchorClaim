@@ -23,7 +23,10 @@ sys.path.insert(0, os.path.join(ROOT, "agent"))
 
 from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402
-from fleet import fleet_overview              # noqa: E402
+from fleet import fleet_overview, build_fleet, PORTS as PORT_COORDS  # noqa: E402
+
+FLEET_VOYAGES = {v["id"]: v for v in build_fleet()}
+ALL_VOYAGES = {**SAMPLE_VOYAGES, **FLEET_VOYAGES}
 
 FRONTEND = os.path.join(ROOT, "frontend")
 app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
@@ -91,7 +94,7 @@ CACHE_DIR = _resolve_cache_dir()
 
 
 def _input_hash(voyage_id):
-    payload = json.dumps(SAMPLE_VOYAGES[voyage_id], sort_keys=True).encode("utf-8")
+    payload = json.dumps(ALL_VOYAGES[voyage_id], sort_keys=True).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
@@ -123,28 +126,42 @@ def index():
     return send_from_directory(FRONTEND, "index.html")
 
 
+def _voyage_card(voyage_id, v):
+    lat, lng = PORT_COORDS.get(v["port"], [10.0, 115.0])
+    return {
+        "id": voyage_id,
+        "vessel": v["vessel"],
+        "imo": v["imo"],
+        "port": v["port"],
+        "lat": lat,
+        "lng": lng,
+        "deposit": v["escrow"]["deposit"],
+        "freight": v["escrow"]["freight"],
+        "contract_text": v["contract_text"],
+        "cached": _cache_get(voyage_id) is not None,
+    }
+
+
 @app.route("/api/voyages")
 @app.route("/voyages")
 def voyages():
-    out = []
-    for vid, v in SAMPLE_VOYAGES.items():
-        out.append({
-            "id": vid,
-            "vessel": v["vessel"],
-            "imo": v["imo"],
-            "port": v["port"],
-            "deposit": v["escrow"]["deposit"],
-            "freight": v["escrow"]["freight"],
-            "contract_text": v["contract_text"],
-            "cached": _cache_get(vid) is not None,
-        })
+    out = [_voyage_card(vid, v) for vid, v in SAMPLE_VOYAGES.items()]
     return jsonify({"voyages": out})
+
+
+@app.route("/api/voyage/<voyage_id>")
+@app.route("/voyage/<voyage_id>")
+def voyage(voyage_id):
+    v = ALL_VOYAGES.get(voyage_id)
+    if v is None:
+        return jsonify({"error": "voyage not found"}), 404
+    return jsonify(_voyage_card(voyage_id, v))
 
 
 @app.route("/api/audit/<voyage_id>")
 @app.route("/audit/<voyage_id>")
 def audit(voyage_id):
-    if voyage_id not in SAMPLE_VOYAGES:
+    if voyage_id not in ALL_VOYAGES:
         return jsonify({"error": "voyage not found"}), 404
 
     # ?refresh=1 forces a re-run even if a cached result exists
@@ -156,7 +173,7 @@ def audit(voyage_id):
             return jsonify(cached)
 
     try:
-        result = audit_voyage(voyage_id, SAMPLE_VOYAGES[voyage_id])
+        result = audit_voyage(voyage_id, ALL_VOYAGES[voyage_id])
         _cache_put(voyage_id, result)
         result["_cached"] = False
         return jsonify(result)
@@ -172,14 +189,14 @@ def audit_edited(voyage_id):
     The edited text is parsed fresh (watch the numbers change), and the result is
     never cached, so each edit is a real run against the engine.
     """
-    if voyage_id not in SAMPLE_VOYAGES:
+    if voyage_id not in ALL_VOYAGES:
         return jsonify({"error": "voyage not found"}), 404
     body = request.get_json(silent=True) or {}
     contract_text = body.get("contract_text")
     if not contract_text:
         return jsonify({"error": "contract_text required"}), 400
     try:
-        result = audit_voyage(voyage_id, SAMPLE_VOYAGES[voyage_id], contract_override=contract_text)
+        result = audit_voyage(voyage_id, ALL_VOYAGES[voyage_id], contract_override=contract_text)
         result["_cached"] = False
         result["_edited"] = True
         return jsonify(result)

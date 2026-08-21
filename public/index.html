@@ -353,8 +353,9 @@
   .mk[data-vd="review"] .ship{border-color:var(--gold);color:var(--gold)}
   .mk .ship svg{width:17px;height:17px}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-  .mk .lbl{margin-top:6px;display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 9px;
+  .mk .lbl{margin-top:6px;display:inline-flex;flex-direction:column;align-items:center;gap:1px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 9px;
     font:600 11px var(--sans);color:var(--ink);white-space:nowrap;box-shadow:var(--shadow-sm)}
+  .mk .mcoord{font:600 9px var(--mono);color:var(--faint);letter-spacing:.2px}
   .mk .vdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .vd-demurrage{background:var(--amber)} .vd-none{background:var(--teal)}
   .vd-dispute{background:var(--red)} .vd-review{background:var(--gold)} .vd-unrun{background:var(--faint)}
@@ -438,6 +439,7 @@
   .verdict .vhead{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15.5px;color:var(--ink)}
   .verdict .amt{font-family:var(--display);font-size:40px;font-weight:800;margin:12px 0 6px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
   .amt.demurrage{color:var(--amber)} .amt.none{color:var(--teal)} .amt.dispute{color:var(--red)} .amt.review{color:var(--gold)}
+  .amt .at-risk{font:700 13px var(--sans);color:var(--gold);letter-spacing:0;vertical-align:middle}
   .verdict .expl{font-family:var(--mono);font-size:12.5px;color:var(--ink);line-height:1.75;opacity:.9}
   .review-list{margin:8px 0 0 18px;padding:0}
   .review-list li{margin:4px 0}
@@ -509,9 +511,11 @@
   .traffic{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
   .tchip{border:1px solid var(--line);border-left:4px solid var(--faint);border-radius:11px;padding:11px 13px;background:var(--surface-2);
     display:flex;flex-direction:column;gap:6px;transition:opacity .3s ease,transform .3s ease,box-shadow .2s,border-color .2s;
-    opacity:0;transform:translateY(6px)}
+    opacity:0;transform:translateY(6px);cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
   .tchip.in{opacity:1;transform:none}
-  .tchip:hover{box-shadow:var(--shadow);border-color:var(--line-strong)}
+  .tchip:hover{box-shadow:var(--shadow);border-color:var(--line-strong);transform:translateY(-1px)}
+  .tchip .tc-open{margin-top:1px;font:600 10px var(--sans);color:var(--muted);transition:color .15s}
+  .tchip:hover .tc-open{color:var(--accent)}
   .tchip.demurrage{border-left-color:var(--red)} .tchip.dispute{border-left-color:var(--gold)} .tchip.none{border-left-color:var(--teal)}
   .tchip .tc-tag{font:650 10px var(--sans);letter-spacing:.7px;text-transform:uppercase}
   .tchip.demurrage .tc-tag{color:var(--red)} .tchip.dispute .tc-tag{color:var(--gold)} .tchip.none .tc-tag{color:var(--teal)}
@@ -750,7 +754,7 @@
       <main class="stage" id="stage">
         <div id="mapView">
           <div class="map-head">
-            <div><div class="map-title">Fleet map — Asia-Pacific corridor</div><div class="map-sub">Singapore · Hong Kong · Tokyo. Click a vessel to open its audit.</div></div>
+            <div><div class="map-title">Fleet map — live positions</div><div class="map-sub">Real coordinates across the Asia-Pacific book. Click a vessel to drill into its audit.</div></div>
             <div class="legend">
               <span><i style="background:var(--amber)"></i>Demurrage</span>
               <span><i style="background:var(--teal)"></i>No demurrage</span>
@@ -759,7 +763,7 @@
             </div>
           </div>
           <div class="map" id="map">
-            <svg id="mapSvg" viewBox="0 0 700 460" preserveAspectRatio="xMidYMid meet"></svg>
+            <svg id="mapSvg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet"></svg>
             <div class="map-markers" id="mapMarkers"></div>
           </div>
         </div>
@@ -937,84 +941,145 @@ function statusOf(v){
   return v._verdict === 'needs_review' ? 'review' : v._verdict;
 }
 
-/* ---------------- Ports / map ---------------- */
-const PORTS = {
-  "Port of Singapore": {x:140, y:378, label:"Singapore"},
-  "Port of Hong Kong": {x:420, y:250, label:"Hong Kong"},
-  "Port of Tokyo":     {x:620, y:112, label:"Tokyo"},
+/* ---------------- Ports / world map ---------------- */
+const PORT_COORDS = {
+  "Port of Singapore":[1.29,103.82],
+  "Port of Hong Kong":[22.30,114.17],
+  "Port of Tokyo":[35.68,139.68],
+  "Port of Shanghai":[31.23,121.47],
+  "Port of Busan":[35.18,129.08],
+  "Port of Kaohsiung":[22.62,120.31],
+  "Port of Manila":[14.60,120.98],
+  "Port of Osaka":[34.69,135.50],
+  "Port of Shenzhen":[22.54,114.06],
+  "Port Klang":[3.03,101.45],
 };
-function portPos(name){ return PORTS[name] || {x:360, y:220, label:(name||'').replace('Port of ','')}; }
+// Regional equirectangular projection over the Asia-Pacific operating region.
+const MAP_W=1000, MAP_H=520;
+const MB={latMin:-12,latMax:42,lngMin:95,lngMax:150};
+const projR=(lat,lng)=>[ (lng-MB.lngMin)/(MB.lngMax-MB.lngMin)*MAP_W, (MB.latMax-lat)/(MB.latMax-MB.latMin)*MAP_H ];
+const fmtCoord=([lat,lng])=>`${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'} ${Math.abs(lng).toFixed(2)}°${lng>=0?'E':'W'}`;
 
-const ROUTES = [
-  {d:"M0,390 C 45,386 95,382 140,378", ship:"var(--accent)", dur:"19s", begin:"0s"},
-  {d:"M140,378 C 205,332 320,272 420,250", ship:"var(--teal)", dur:"25s", begin:"2.5s"},
-  {d:"M420,250 C 475,205 555,150 620,112", ship:"var(--amber)", dur:"26s", begin:"5s"},
+// Landmasses as [lat,lng] polygons (East & Southeast Asia + West Pacific).
+const LAND=[
+  [[42,95],[42,102],[39,108],[35,112],[31,113],[27,114],[23,112],[21,108],[17,105],[14,101],[12,97],[10,99],[13,102],[17,106],[21,110],[24,114],[26,118],[28,122],[31,122],[34,122],[37,126],[39,130],[40,135],[41,140],[42,145],[43,150],[43,120],[42,95]],
+  [[45,140],[43,144],[39,142],[35,140],[31,136],[30,131],[31,129],[33,131],[35,134],[37,131],[38,130],[40,131],[42,133],[45,140]],
+  [[25.1,120],[24.8,121.9],[23.0,121.5],[22.1,120.6],[23.0,120.1],[25.1,120]],
+  [[18.6,120],[17.2,122],[14.1,122],[12.6,121],[13.6,120],[16.0,120],[18.6,120]],
+  [[8,98],[6.5,100],[4.5,100.5],[2.6,102],[1.3,103.7],[2.4,104.4],[5,103.8],[7,102.8],[8.5,101],[8,98]],
+  [[5.7,95.3],[4,97],[0.5,99],[-1,102],[-3,104],[-5.5,106],[0,106.2],[3,104],[5,102],[5.7,95.3]],
+  [[7,109],[4,113],[1,115],[-2.5,117],[-2,119],[1,118.6],[4,117],[7,114],[7,109]],
 ];
-const COAST = "M0,0 L0,270 C 40,266 62,248 98,252 C 132,256 158,272 194,270 C 228,268 252,250 286,254 C 320,258 352,274 388,272 C 412,270 428,256 446,254 C 470,264 502,274 540,268 C 580,262 640,266 700,260 L700,0 Z";
-const ISLE1 = "M598,76 C 612,96 614,138 604,168 C 598,190 626,194 634,172 C 642,146 644,114 634,88 C 630,78 606,72 598,76 Z";
-const ISLE2 = "M28,460 L50,412 C 82,398 108,400 126,402 L136,394 C 146,388 152,376 140,375 C 122,374 86,380 40,390 L28,460 Z";
+
+// Simplified world outline (for the locator inset).
+const WORLD=[
+  [[70,-165],[66,-135],[60,-95],[55,-75],[42,-70],[30,-78],[24,-88],[26,-105],[35,-120],[55,-130],[70,-165]],
+  [[75,-45],[70,-22],[80,-28],[83,-50],[75,-45]],
+  [[10,-78],[5,-60],[-6,-45],[-16,-40],[-26,-45],[-46,-54],[-53,-68],[-44,-72],[-24,-70],[-8,-72],[10,-78]],
+  [[35,-8],[30,15],[31,32],[10,40],[-6,35],[-22,24],[-34,8],[-22,-6],[-8,-5],[10,-3],[24,-6],[35,-8]],
+  [[60,8],[50,24],[46,38],[38,46],[38,35],[46,20],[60,8]],
+  [[70,60],[75,100],[72,125],[58,140],[44,135],[34,120],[28,104],[22,76],[28,60],[42,46],[56,45],[70,60]],
+  [[22,72],[20,78],[12,80],[8,76],[15,72],[22,72]],
+  [[-12,115],[-18,125],[-23,135],[-28,145],[-38,150],[-38,140],[-33,128],[-27,120],[-19,113],[-12,115]],
+];
+
+const polyD=(pts,proj)=>{
+  const c=pts.map(p=>proj(p[0],p[1]));
+  let d=`M ${c[0][0].toFixed(1)} ${c[0][1].toFixed(1)}`;
+  for(let i=1;i<c.length;i++) d+=` L ${c[i][0].toFixed(1)} ${c[i][1].toFixed(1)}`;
+  return d+' Z';
+};
+
+const ROUTES=[
+  {a:[1.29,103.82],b:[22.30,114.17],ship:'var(--teal)',dur:'26s',begin:'0s'},
+  {a:[22.30,114.17],b:[35.68,139.68],ship:'var(--amber)',dur:'30s',begin:'2.5s'},
+  {a:[31.23,121.47],b:[34.69,135.50],ship:'var(--accent)',dur:'22s',begin:'5s'},
+];
+const routeD=(a,b)=>{
+  const [x1,y1]=projR(a[0],a[1]); const [x2,y2]=projR(b[0],b[1]);
+  const mx=(x1+x2)/2, my=Math.min(y1,y2)-(Math.abs(x2-x1)*0.12+10);
+  return `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+};
 
 function drawMapBase(){
   const svg=document.getElementById('mapSvg');
+  const NS="http://www.w3.org/2000/svg";
+
+  const grid=[];
+  [0,10,20,30,40].forEach(lat=>{ grid.push(`<path d="M0 ${projR(lat,MB.lngMin)[1].toFixed(1)} H ${MAP_W}"/>`); });
+  [100,110,120,130,140].forEach(lng=>{ grid.push(`<path d="M${projR(MB.latMin,lng)[0].toFixed(1)} 0 V ${MAP_H}"/>`); });
+
+  const landSvg=LAND.map(p=>{
+    const d=polyD(p,projR);
+    return `<path class="coastfoam" d="${d}"/><path d="${d}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>`;
+  }).join('');
+
+  const lngLabels=[100,110,120,130].map(lng=>{
+    const [x]=projR(0,lng);
+    return `<text x="${x.toFixed(1)}" y="${MAP_H-9}" class="coord" text-anchor="middle">${lng}°E</text>`;
+  }).join('');
+  const latLabels=[0,10,20,30,40].map(lat=>{
+    const [,y]=projR(lat,MB.lngMin);
+    return `<text x="8" y="${(y+3).toFixed(1)}" class="coord">${lat}°N</text>`;
+  }).join('');
+
+  // World locator inset (bottom-right): mini globe + highlighted operating region.
+  const insX=766, insY=400, iw=224, ih=112;
+  const wproj=(lat,lng)=>[ (lng+180)/360*iw, (90-lat)/180*ih ];
+  const wland=WORLD.map(p=>`<path d="${polyD(p,wproj)}" fill="var(--land)" stroke="var(--land-line)" stroke-width=".6"/>`).join('');
+  const [rrx,rry]=wproj(38,95), [rrx2,rry2]=wproj(-10,150);
+  const locator=`<g transform="translate(${insX},${insY})">
+      <rect x="0" y="0" width="${iw}" height="${ih}" rx="8" fill="var(--surface)" fill-opacity=".72" stroke="var(--line-strong)"/>
+      ${wland}
+      <rect x="${rrx.toFixed(1)}" y="${rry.toFixed(1)}" width="${(rrx2-rrx).toFixed(1)}" height="${(rry2-rry).toFixed(1)}" rx="3" fill="var(--accent)" opacity=".22" stroke="var(--accent)" stroke-width="1.2"/>
+      <text x="${iw/2}" y="${ih-9}" text-anchor="middle" class="coord" font-size="8.5" fill="var(--muted)">ASIA-PACIFIC</text>
+    </g>`;
+
   svg.innerHTML = `
     <defs>
       <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="var(--sea-1)"/><stop offset="1" stop-color="var(--sea-2)"/>
       </linearGradient>
     </defs>
-    <rect x="0" y="0" width="700" height="460" fill="url(#sea)"/>
-    <g class="grid-line">
-      <path d="M0 105 H700"/><path d="M0 195 H700"/><path d="M0 285 H700"/><path d="M0 375 H700"/>
-      <path d="M130 0 V460"/><path d="M300 0 V460"/><path d="M470 0 V460"/><path d="M640 0 V460"/>
-    </g>
-    <path class="bathy" d="M90,180 Q 200,150 310,172 T 540,152 T 690,168"/>
-    <path class="bathy" d="M70,225 Q 230,202 410,224 T 660,206"/>
-    <path class="bathy" d="M180,90 Q 270,70 360,95"/>
-    ${ROUTES.map(r=>`<path class="route" d="${r.d}"/>`).join('')}
-    <path class="coastfoam" d="${COAST}"/>
-    <path d="${COAST}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
-    <path class="coastfoam" d="${ISLE1}"/>
-    <path d="${ISLE1}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
-    <path class="coastfoam" d="${ISLE2}"/>
-    <path d="${ISLE2}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
-    <path class="coastfoam" d="M500,306 C 512,298 526,300 532,312 C 538,324 528,336 516,334 C 504,332 496,318 500,306 Z"/>
-    <path d="M500,306 C 512,298 526,300 532,312 C 538,324 528,336 516,334 C 504,332 496,318 500,306 Z" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
-    <text x="560" y="430" class="port-label" opacity=".55" text-anchor="end">WESTERN PACIFIC</text>
-    <text x="150" y="450" class="coord">105°E</text>
-    <text x="400" y="450" class="coord">120°E</text>
-    <text x="640" y="450" class="coord">135°E</text>
-    <text x="8" y="108" class="coord">35°N</text>
-    <text x="8" y="230" class="coord">15°N</text>
-    <g class="compass" transform="translate(646,74)">
-      <circle r="15" fill="var(--surface)" fill-opacity=".7" stroke="var(--line-strong)"/>
+    <rect x="0" y="0" width="${MAP_W}" height="${MAP_H}" fill="url(#sea)"/>
+    <g class="grid-line">${grid.join('')}</g>
+    <path class="bathy" d="M0 210 Q 160 180 340 204 T 660 196 T 1000 205"/>
+    <path class="bathy" d="M0 335 Q 220 308 470 330 T 1000 316"/>
+    ${ROUTES.map(r=>`<path class="route" d="${routeD(r.a,r.b)}"/>`).join('')}
+    ${landSvg}
+    <text x="${MAP_W-12}" y="44" class="port-label" opacity=".6" text-anchor="end" font-size="11">WESTERN PACIFIC</text>
+    ${lngLabels}${latLabels}
+    <g class="compass" transform="translate(926,74)">
+      <circle r="16" fill="var(--surface)" fill-opacity=".7" stroke="var(--line-strong)"/>
       <path d="M0,-11 L4,-2 L0,-5 L-4,-2 Z" fill="var(--accent)"/>
       <path d="M0,11 L4,2 L0,5 L-4,2 Z" fill="var(--faint)"/>
-      <text y="-19" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">N</text>
+      <text y="-20" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">N</text>
     </g>
-    <g class="compass" transform="translate(30,428)">
-      <line x1="0" y1="0" x2="80" y2="0" stroke="var(--line-strong)" stroke-width="2"/>
-      <line x1="0" y1="-4" x2="0" y2="4" stroke="var(--line-strong)" stroke-width="2"/>
-      <line x1="80" y1="-4" x2="80" y2="4" stroke="var(--line-strong)" stroke-width="2"/>
-      <text x="0" y="14" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">0</text>
-      <text x="80" y="14" text-anchor="end" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">200 nm</text>
+    <g class="compass" transform="translate(20,462)">
+      <line x1="0" y1="0" x2="90" y2="0" stroke="var(--line-strong)" stroke-width="2.2"/>
+      <line x1="0" y1="-4" x2="0" y2="4" stroke="var(--line-strong)" stroke-width="2.2"/>
+      <line x1="90" y1="-4" x2="90" y2="4" stroke="var(--line-strong)" stroke-width="2.2"/>
+      <text x="0" y="15" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">0</text>
+      <text x="90" y="15" text-anchor="end" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">500 nm</text>
     </g>
+    ${locator}
     ${ROUTES.map(r=>`
       <g>
-        <circle r="4" fill="${r.ship}" opacity=".22"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${r.d}" begin="${r.begin}"/></circle>
-        <circle r="2.3" fill="${r.ship}"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${r.d}" begin="${r.begin}"/></circle>
+        <circle r="4" fill="${r.ship}" opacity=".22"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${routeD(r.a,r.b)}" begin="${r.begin}"/></circle>
+        <circle r="2.3" fill="${r.ship}"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${routeD(r.a,r.b)}" begin="${r.begin}"/></circle>
       </g>`).join('')}`;
-  for(const [name,p] of Object.entries(PORTS)){
-    const pulse=document.createElementNS("http://www.w3.org/2000/svg","circle");
-    pulse.setAttribute("cx",p.x); pulse.setAttribute("cy",p.y); pulse.setAttribute("r","9");
-    pulse.setAttribute("fill","var(--accent)"); pulse.setAttribute("opacity",".28"); pulse.setAttribute("class","port-pulse");
-    svg.appendChild(pulse);
-    const c=document.createElementNS("http://www.w3.org/2000/svg","circle");
-    c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r","5");
-    c.setAttribute("fill","var(--accent)");
+
+  // Reference port dots for the whole operating network.
+  for(const [name,ll] of Object.entries(PORT_COORDS)){
+    const [x,y]=projR(ll[0],ll[1]);
+    const c=document.createElementNS(NS,"circle");
+    c.setAttribute("cx",x.toFixed(1)); c.setAttribute("cy",y.toFixed(1)); c.setAttribute("r","3.5");
+    c.setAttribute("fill","var(--accent)"); c.setAttribute("opacity",".5");
     svg.appendChild(c);
-    const t=document.createElementNS("http://www.w3.org/2000/svg","text");
-    t.setAttribute("x",p.x); t.setAttribute("y",p.y+24); t.setAttribute("text-anchor","middle");
-    t.setAttribute("class","port-label"); t.textContent=p.label;
+    const t=document.createElementNS(NS,"text");
+    t.setAttribute("x",(x+8).toFixed(1)); t.setAttribute("y",(y+3.5).toFixed(1));
+    t.setAttribute("class","port-label"); t.setAttribute("font-size","10");
+    t.textContent=name.replace('Port of ','').replace('Port ','');
     svg.appendChild(t);
   }
 }
@@ -1022,27 +1087,26 @@ function drawMapBase(){
 function renderMapMarkers(){
   const wrap=document.getElementById('mapMarkers');
   const mapEl=document.getElementById('map');
-  const W=mapEl.clientWidth||700, H=W*(460/700);
+  const W=mapEl.clientWidth||MAP_W, H=W*(MAP_H/MAP_W);
   wrap.innerHTML='';
-  const byPort={};
-  Object.values(DATA).forEach(v=>{ (byPort[v.port]=byPort[v.port]||[]).push(v); });
-  for(const [port,vs] of Object.entries(byPort)){
-    const p=portPos(port);
-    vs.forEach((v,i)=>{
-      const off=(i-(vs.length-1)/2)*58;
-      const px=((p.x+off)/700)*W, py=((p.y-14)/460)*H;
-      const s=statusOf(v);
-      const vd=s==='unrun' ? 'vd-unrun' : (VD[v._verdict]||'vd-unrun');
-      const el=document.createElement('button');
-      el.className='mk'; el.dataset.id=v.id; el.dataset.vd=v._verdict||'unrun';
-      el.dataset.search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
-      el.style.left=px+'px'; el.style.top=py+'px';
-      el.title=v.vessel+' · '+v.port+' · '+s;
-      el.innerHTML=`<div class="ship">${anchorSvg}</div><div class="lbl"><span class="vdot ${vd}"></span>${v.vessel}</div>`;
-      el.onclick=()=>select(v.id);
-      wrap.appendChild(el);
-    });
-  }
+  const seen={};
+  Object.values(DATA).forEach(v=>{
+    const ll=(v.lat!=null && v.lng!=null) ? [v.lat,v.lng] : (PORT_COORDS[v.port]||[10,115]);
+    const [mx,my]=projR(ll[0],ll[1]);
+    const n=seen[v.port]=(seen[v.port]||0)+1;
+    const off=n>1 ? ((n%2===0?1:-1)*Math.ceil(n/2)*50) : 0;
+    const px=(mx+off)/MAP_W*W, py=(my-14)/MAP_H*H;
+    const s=statusOf(v);
+    const vd=s==='unrun' ? 'vd-unrun' : (VD[v._verdict]||'vd-unrun');
+    const el=document.createElement('button');
+    el.className='mk'; el.dataset.id=v.id; el.dataset.vd=v._verdict||'unrun';
+    el.dataset.search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
+    el.style.left=px+'px'; el.style.top=py+'px';
+    el.title=`${v.vessel} · ${v.port} · ${fmtCoord(ll)} · ${s}`;
+    el.innerHTML=`<div class="ship">${anchorSvg}</div><div class="lbl"><span><span class="vdot ${vd}"></span>${v.vessel}</span><span class="mcoord">${fmtCoord(ll)}</span></div>`;
+    el.onclick=()=>select(v.id);
+    wrap.appendChild(el);
+  });
 }
 window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') renderMapMarkers(); });
 
@@ -1177,11 +1241,42 @@ function renderFleetOverview(F){
   F.voyages.forEach(v=>{
     const lbl = v.status==='demurrage' ? 'Demurrage' : v.status==='dispute' ? 'Dispute' : 'Clear';
     const amt = v.status==='demurrage' ? fmt(v.amount_usd) : v.status==='dispute' ? (v.at_risk_usd>0 ? 'Hold '+fmt(v.at_risk_usd) : 'Hold') : 'Clear';
-    const el = document.createElement('div');
+    const el = document.createElement('button');
+    el.type = 'button';
     el.className = 'tchip '+v.status;
-    el.innerHTML = `<span class="tc-tag">${lbl}</span><span class="tc-vessel">${v.vessel}</span><span class="tc-port">${v.port} · ${v.imo}</span><span class="tc-amt">${amt}</span>`;
+    el.dataset.id = v.id;
+    el.title = `${v.vessel} · ${v.port} — open the full audit in the command center`;
+    el.innerHTML = `<span class="tc-tag">${lbl}</span><span class="tc-vessel">${v.vessel}</span><span class="tc-port">${v.port} · ${v.imo}</span><span class="tc-amt">${amt}</span><span class="tc-open">Open audit ↗</span>`;
+    el.onclick = ()=>drillIntoFleet(v.id);
     tr.appendChild(el);
   });
+}
+
+async function drillIntoFleet(id){
+  if(running){ toast('An audit is already running — wait for it to finish.','err'); return; }
+  const chip = document.querySelector(`#traffic .tchip[data-id="${id}"]`);
+  try{
+    const r = await fetch(API + '/api/voyage/' + id);
+    if(!r.ok) throw new Error('voyage ' + r.status);
+    const v = await r.json();
+    DATA[id] = v;
+    let el = fleet.querySelector(`.voyage[data-id="${id}"]`);
+    if(!el){
+      el = document.createElement('button');
+      el.className = 'voyage'; el.dataset.id = id;
+      el.dataset.search = (v.vessel+' '+v.imo+' '+v.port).toLowerCase();
+      fleet.appendChild(el);
+    }
+    el.onclick = ()=>select(id);
+    el.innerHTML = cardInner(v);
+    if(chip){ chip.classList.add('visited'); chip.querySelector('.tc-open').textContent = 'Opened ✓'; }
+    renderMapMarkers();
+    showDemo();
+    select(id);
+    runAudit(id);
+  }catch(e){
+    toast('Could not open voyage — ' + e.message, 'err');
+  }
 }
 
 function playFleet(){
@@ -1550,7 +1645,8 @@ function renderResult(R){
   const block=document.createElement('div');
   if(v.type==='dispute'){
     block.className='verdict dispute';
-    block.innerHTML=`<div class="vhead">⚠ Data dispute — auto-settlement blocked</div><div class="amt dispute">HOLD</div>
+    const atRisk = v.at_risk_usd>0 ? ` <span class="at-risk">${fmt(v.at_risk_usd)} at risk</span>` : '';
+    block.innerHTML=`<div class="vhead">⚠ Data dispute — auto-settlement blocked</div><div class="amt dispute">HOLD${atRisk}</div>
       <div class="expl">${v.reason}. Funds are not moved automatically; the case is routed to manual review to prevent settlement on falsified port records.</div>`;
   } else if(v.type==='needs_review'){
     block.className='verdict review';
