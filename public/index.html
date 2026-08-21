@@ -243,6 +243,21 @@
   .demo-head .lead{color:var(--muted);max-width:600px;margin-top:8px;font-size:14.5px}
   .demo-head h1{font-family:var(--display);font-size:clamp(22px,2.8vw,30px);font-weight:800;letter-spacing:-.5px;color:var(--ink);margin-top:8px}
 
+  /* Role toggle */
+  .demo-actions{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .role-toggle{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+  .role-btn{display:inline-flex;align-items:center;gap:7px;border:none;background:none;border-radius:9px;padding:8px 14px;font:650 13px var(--sans);color:var(--muted);cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
+  .role-btn svg{width:15px;height:15px}
+  .role-btn.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .role-btn[data-role="owner"].active{color:var(--accent)}
+  .role-btn[data-role="charterer"].active{color:var(--amber-deep)}
+  .role-line{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font:500 13px var(--sans);color:var(--muted);flex-wrap:wrap}
+  .role-line b{font-weight:700}
+  .role-line.owner{background:var(--accent-soft);border-color:var(--accent)}
+  .role-line.owner b{color:var(--accent)}
+  .role-line.charterer{background:var(--amber-soft);border-color:var(--gold)}
+  .role-line.charterer b{color:var(--amber-deep)}
+
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
   @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.kpis{grid-template-columns:1fr}}
@@ -783,18 +798,30 @@
       <div>
         <span class="eyebrow">Voyage command center</span>
         <h1>Audit &amp; settle in real time.</h1>
-        <p class="lead">Select a voyage, run the audit, and watch each stage execute before the verdict is settled.</p>
+        <p class="lead">Select a voyage, run the audit, and watch each stage execute — then switch between <b>Shipowner</b> and <b>Charterer</b> to see the same settlement from both sides.</p>
       </div>
-      <button class="btn btn-primary" id="heroRun">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Audit next voyage
-      </button>
+      <div class="demo-actions">
+        <div class="role-toggle" role="tablist" aria-label="Viewing role" title="Same voyage, two parties">
+          <button class="role-btn active" data-role="owner" id="roleOwner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/><path d="M19.4 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.95 5.34 2.82 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/></svg>
+            Shipowner
+          </button>
+          <button class="role-btn" data-role="charterer" id="roleCharterer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01"/></svg>
+            Charterer
+          </button>
+        </div>
+        <button class="btn btn-primary" id="heroRun">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Audit next voyage
+        </button>
+      </div>
     </div>
 
     <section class="kpis" aria-label="Fleet metrics">
       <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/><path d="M19.4 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.95 5.34 2.82 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 11v4"/><path d="M12 3v3"/></svg></span><span class="k-tag">Vessels</span></div><div class="k-value" id="kFleet">0</div><div class="k-sub">in the monitored fleet</div></div>
       <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="k-tag">Escrow</span></div><div class="k-value" id="kEscrow">$0</div><div class="k-sub">total deposits escrowed</div></div>
-      <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag">Recovered</span></div><div class="k-value" id="kRecovered">$0</div><div class="k-sub">auto-settled claims</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag" id="kRecoveredTag">Receivable</span></div><div class="k-value" id="kRecovered">$0</div><div class="k-sub" id="kRecoveredSub">your collectible claims</div></div>
       <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span class="k-tag">Alerts</span></div><div class="k-value" id="kAlerts">0</div><div class="k-sub" id="kAlertsSub">disputes + reviews</div></div>
     </section>
 
@@ -952,11 +979,22 @@ const API = "";
 let DATA = {};
 let AUDIT = {};
 let activeId = null, running = false;
+let ROLE = 'owner';  // 'owner' (shipowner) | 'charterer'
 const state = { filter: 'all' };
 
 const fleet = document.getElementById('fleet');
 const detail = document.getElementById('detail');
 const mapView = document.getElementById('mapView');
+
+/* ---------------- Role (multi-party view) ---------------- */
+function setRole(role){
+  ROLE = role;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role===role));
+  renderKPIs();
+  if(activeId && !running && detail.style.display!=='none') select(activeId);
+}
+document.getElementById('roleOwner').onclick = ()=>setRole('owner');
+document.getElementById('roleCharterer').onclick = ()=>setRole('charterer');
 
 /* ---------------- Theme ---------------- */
 (function initTheme(){
@@ -1286,6 +1324,9 @@ function renderKPIs(){
   document.getElementById('kRecovered').textContent=fmt(s.recovered);
   document.getElementById('kAlerts').textContent=s.alerts;
   document.getElementById('kAlertsSub').textContent = s.disputes+' dispute'+(s.disputes!==1?'s':'')+' · '+s.reviews+' review'+(s.reviews!==1?'s':'');
+  const owner = ROLE==='owner';
+  document.getElementById('kRecoveredTag').textContent = owner ? 'Receivable' : 'Payable';
+  document.getElementById('kRecoveredSub').textContent = owner ? 'your collectible demurrage' : 'your charges, explained below';
 }
 function renderStatusStrip(){
   const order=[['demurrage','Demurrage'],['none','No demurrage'],['dispute','Dispute'],['review','Review'],['unrun','Pending']];
@@ -1714,13 +1755,15 @@ function select(id){
   document.querySelectorAll('.voyage').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
   mapView.style.display='none'; detail.style.display='block';
   const v=DATA[id];
+  const isOwner = ROLE==='owner';
   detail.innerHTML=`
     <button class="back-map" id="backMap">${backSvg} Back to map</button>
+    <div class="role-line ${ROLE}"><b>${isOwner?'Shipowner view':'Charterer view'}</b><span>${isOwner?'You are collecting — here is what is owed to you.':'You are paying — here is what is deducted and why.'}</span></div>
     <div class="voyage-head">
       <div>
         <div class="vt">${v.vessel}</div>
         <div class="vmeta">${id} · IMO ${v.imo} · ${v.port}</div>
-        <div class="contract"><span>Freight <b>${fmt(v.freight)}</b></span><span>Deposit <b>${fmt(v.deposit)}</b></span></div>
+        <div class="contract"><span>${isOwner?'Freight (yours)':'Freight (you pay)'} <b>${fmt(v.freight)}</b></span><span>${isOwner?'Escrow held':'Your deposit'} <b>${fmt(v.deposit)}</b></span></div>
       </div>
       <button class="run" id="runBtn">${playSvg} Run audit</button>
     </div>
@@ -1907,7 +1950,7 @@ function calcBreakdown(R){
     ['− Allowed laytime', `${c.laytime_hours}h`, 'from charter party'],
     ['= Excess time', `${rc.excess_time_hours}h`, ''],
     ['× Daily rate', `${fmt(c.demurrage_rate_usd_per_day)}/day`, `${rc.excess_time_hours}h = ${(rc.excess_time_hours/24).toFixed(3)} days`],
-    ['= Demurrage', fmt(v.amount_usd||rc.total_penalty_usd), 'excess ÷ 24 × rate'],
+    ['= Demurrage ' + (ROLE==='owner' ? 'receivable' : 'payable'), fmt(v.amount_usd||rc.total_penalty_usd), 'excess ÷ 24 × rate'],
   ];
   const body=rows.map(r=>`<div class="bd-row"><span class="bd-label">${r[0]}</span><span class="bd-val">${r[1]}</span><span class="bd-note">${r[2]}</span></div>`).join('');
   return `<details class="breakdown"><summary>Calculation breakdown</summary><div class="bd">${body}</div></details>`;
@@ -1924,6 +1967,7 @@ function countUp(el, target){
 
 function evidencePanel(R){
   const ev=R.evidence; if(!ev) return '';
+  const owner = ROLE==='owner';
   const S=ev.sources||{};
   const rows=[
     ['AIS', !!(R.check && R.check.consistent), R.check?`in-port ${R.check.ais_hours}h vs port log ${R.check.sof_hours}h`:'' ],
@@ -1935,42 +1979,59 @@ function evidencePanel(R){
   ];
   const okCount=rows.filter(r=>r[1]).length;
   const body=rows.map(r=>`<div class="ev-row"><span class="ev-icon ${r[1]?'ok':'warn'}">${r[1]?'✓':'!'}</span><span class="ev-name">${r[0]}</span><span class="ev-note">${r[2]||''}</span></div>`).join('');
-  const gaps=(ev.unsupported_claims||[]).length ? `<div class="ev-gap">⚠ ${ev.unsupported_claims.length} unsupported claim(s): ${ev.unsupported_claims.join('; ')}</div>` : '';
-  return `<div class="evidence"><div class="ev-head">Multi-source verification<span class="ev-score">${okCount}/${rows.length} sources corroborate</span></div>${body}${gaps}</div>`;
+  const score = owner ? `${okCount}/${rows.length} sources corroborate your claim` : `${okCount}/${rows.length} sources back your charge`;
+  const gaps=(ev.unsupported_claims||[]).length
+    ? (owner
+        ? `<div class="ev-gap">⚠ ${ev.unsupported_claims.length} charterer claim(s) were NOT corroborated — they do not reduce your receivable: ${ev.unsupported_claims.join('; ')}</div>`
+        : `<div class="ev-gap">⚠ ${ev.unsupported_claims.length} of your suspension claims were NOT corroborated — you are charged for that time: ${ev.unsupported_claims.join('; ')}</div>`)
+    : '';
+  return `<div class="evidence"><div class="ev-head">Multi-source verification<span class="ev-score">${score}</span></div>${body}${gaps}</div>`;
 }
 function reasoningPanel(R){
   const rs=R.reasoning; if(!rs || !(rs.suspension_decisions||[]).length) return '';
+  const owner = ROLE==='owner';
   const modeLabel = rs.mode==='llm' ? 'reasoned by LLM' : 'deterministic fallback (no LLM)';
-  const rows = rs.suspension_decisions.map(d=>`<div class="ev-row"><span class="ev-icon ${d.corroborated?'ok':'warn'}">${d.corroborated?'✓':'!'}</span><span class="ev-name">${d.reason}</span><span class="ev-note">${d.corroborated?'deducted':'NOT deducted'} — ${d.explanation}</span></div>`).join('');
+  const rows = rs.suspension_decisions.map(d=>{
+    const note = d.corroborated
+      ? (owner ? 'deducted — reduces your receivable' : 'deducted — reduces your charge')
+      : (owner ? 'NOT deducted — you still collect' : 'NOT deducted — you still pay');
+    return `<div class="ev-row"><span class="ev-icon ${d.corroborated?'ok':'warn'}">${d.corroborated?'✓':'!'}</span><span class="ev-name">${d.reason}</span><span class="ev-note">${note} — ${d.explanation}</span></div>`;
+  }).join('');
   const sofNote = rs.ais_sof_note ? `<div class="ev-gap">AIS/SoF timeline check: ${rs.ais_sof_note}</div>` : '';
   return `<div class="evidence"><div class="ev-head">Suspension reasoning<span class="ev-score">${modeLabel}</span></div>${rows}${sofNote}</div>`;
 }
 function renderResult(R){
   const res=document.getElementById('result');
   const v=R.verdict, rc=R.receipt;
+  const owner = ROLE==='owner';
   const block=document.createElement('div');
   if(v.type==='dispute'){
     block.className='verdict dispute';
     const atRisk = v.at_risk_usd>0 ? ` <span class="at-risk">${fmt(v.at_risk_usd)} at risk</span>` : '';
-    block.innerHTML=`<div class="vhead">⚠ Data dispute — auto-settlement blocked</div><div class="amt dispute">HOLD${atRisk}</div>
-      <div class="expl">${v.reason}. Funds are not moved automatically; the case is routed to manual review to prevent settlement on falsified port records.</div>`;
+    block.innerHTML=`<div class="vhead">⚠ Data dispute — ${owner?'your claim is blocked':'your payment is held'}</div><div class="amt dispute">HOLD${atRisk}</div>
+      <div class="expl">${v.reason}. ${owner?'Your claim cannot auto-settle on mismatched records, so it routes to manual review.':'The deduction is blocked and the case routes to manual review, so you are never auto-charged on a mismatched record.'}</div>`;
   } else if(v.type==='needs_review'){
     block.className='verdict review';
-    block.innerHTML=`<div class="vhead">⏸ Human review required — not auto-settled</div>
+    block.innerHTML=`<div class="vhead">⏸ Human review — ${owner?'your claim is pending approval':'your charge is pending approval'}</div>
       <div class="amt review" data-animate="${v.amount_usd}">${fmt(v.amount_usd)}</div>
       <div class="expl">The agent computed a settlement but paused it for a human to confirm:
         <ul class="review-list">${(v.review_reasons||[]).map(r=>`<li>${r}</li>`).join('')}</ul>
         High-risk cases never settle automatically — a reviewer approves before funds move.</div>${calcBreakdown(R)}`;
   } else if(v.type==='demurrage'){
     block.className='verdict demurrage';
-    block.innerHTML=`<div class="vhead">Demurrage — auto-deducted</div>
+    block.innerHTML=`
+      <div class="vhead">${owner?'Demurrage — you collect':'Demurrage — you are charged'}</div>
       <div class="amt demurrage" data-animate="${v.amount_usd}">${fmt(v.amount_usd)}</div>
-      <div class="expl">Excess ${v.excess_hours}h. Deducted ${fmt(v.penalty)} from the charterer's deposit to the shipowner (capped at deposit ${fmt(R.escrow.deposit)}). Freight ${fmt(v.freight_to_owner)} paid in full to owner; remaining deposit ${fmt(v.refund_to_charterer)} refunded to charterer.</div>
+      <div class="expl">${owner
+        ? `Excess ${v.excess_hours}h × ${fmt(R.contract.demurrage_rate_usd_per_day)}/day. ${fmt(v.penalty)} is deducted from the charterer's escrow to you (capped at deposit ${fmt(R.escrow.deposit)}). Freight ${fmt(v.freight_to_owner)} also stays with you; the charterer gets the remaining ${fmt(v.refund_to_charterer)} back.`
+        : `Your vessel stayed ${v.excess_hours}h past the allowed laytime (${fmt(R.contract.demurrage_rate_usd_per_day)}/day), so ${fmt(v.penalty)} is deducted from your ${fmt(R.escrow.deposit)} deposit to the shipowner. You are refunded ${fmt(v.refund_to_charterer)}; freight ${fmt(v.freight_to_owner)} is paid in full.`}</div>
       ${calcBreakdown(R)}${txRow(R)}`;
   } else {
     block.className='verdict none';
-    block.innerHTML=`<div class="vhead">No demurrage — balance released</div><div class="amt none">$0</div>
-      <div class="expl">After deducting ${rc.excluded_hours}h of contractual suspension time, counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${R.contract.laytime_hours}h. No penalty; deposit refunded in full.</div>${txRow(R)}`;
+    block.innerHTML=`<div class="vhead">${owner?'No demurrage — nothing to collect':'No demurrage — nothing to pay'}</div><div class="amt none">$0</div>
+      <div class="expl">${owner
+        ? `After ${rc.excluded_hours}h of contractual suspension time, counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${R.contract.laytime_hours}h, so no penalty applies and the deposit is released.`
+        : `Your ${rc.excluded_hours}h of suspension time was honored, so counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${R.contract.laytime_hours}h. No penalty — your deposit is refunded in full.`}</div>${txRow(R)}`;
   }
   const ep=evidencePanel(R); if(ep){ const d=document.createElement('div'); d.innerHTML=ep; res.appendChild(d.firstElementChild); }
   const rp=reasoningPanel(R); if(rp){ const d=document.createElement('div'); d.innerHTML=rp; res.appendChild(d.firstElementChild); }
