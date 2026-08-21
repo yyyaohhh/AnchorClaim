@@ -28,6 +28,10 @@ from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402
 from fleet import fleet_overview, build_fleet, PORTS as PORT_COORDS  # noqa: E402
 from qna_agent import ask_question            # noqa: E402
+from step1_parse_contract import parse_contract  # noqa: E402
+from lifecycle import (                       # noqa: E402
+    contract_template, funding_status, sign, reset_funding, monitoring_log,
+)
 
 FLEET_VOYAGES = {v["id"]: v for v in build_fleet()}
 ALL_VOYAGES = {**SAMPLE_VOYAGES, **FLEET_VOYAGES}
@@ -206,6 +210,48 @@ def audit_edited(voyage_id):
         return jsonify(result)
     except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/fund/<voyage_id>")
+@app.route("/fund/<voyage_id>")
+def fund_state(voyage_id):
+    """Everything the 'Verify & Fund' panel needs: the smart-contract template
+    to confirm, the current signature status, and the daily monitoring log
+    once both parties have signed."""
+    if voyage_id not in ALL_VOYAGES:
+        return jsonify({"error": "voyage not found"}), 404
+    v = ALL_VOYAGES[voyage_id]
+    contract = parse_contract(v["contract_text"])
+    status = funding_status(voyage_id)
+    return jsonify({
+        "template": contract_template(voyage_id, v, contract),
+        "status": status,
+        "monitoring": monitoring_log(v) if status["funded"] else [],
+    })
+
+
+@app.route("/api/fund/<voyage_id>/sign", methods=["POST"])
+@app.route("/fund/<voyage_id>/sign", methods=["POST"])
+def fund_sign(voyage_id):
+    """A wallet signature confirming the escrow fund() call (mock — no real chain call)."""
+    if voyage_id not in ALL_VOYAGES:
+        return jsonify({"error": "voyage not found"}), 404
+    body = request.get_json(silent=True) or {}
+    party = body.get("party")
+    try:
+        status = sign(voyage_id, party)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    v = ALL_VOYAGES[voyage_id]
+    return jsonify({"status": status, "monitoring": monitoring_log(v) if status["funded"] else []})
+
+
+@app.route("/api/fund/<voyage_id>", methods=["DELETE"])
+@app.route("/fund/<voyage_id>", methods=["DELETE"])
+def fund_reset(voyage_id):
+    """Clear both signatures so the funding flow can be replayed."""
+    reset_funding(voyage_id)
+    return jsonify({"reset": True})
 
 
 @app.route("/api/fleet")
