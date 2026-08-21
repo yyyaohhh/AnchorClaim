@@ -40,6 +40,14 @@ parse contract  ->  calculate demurrage  ->  settle on-chain
   `needs_review` (human-in-the-loop) instead of auto-settling.
 - **Explainable settlement** — every demurrage figure expands into a step-by-step
   calculation breakdown (gross hours → exclusions → counted → excess → rate → total).
+- **Multi-source cross-validation** — the audit corroborates the port log against five
+  independent sources (weather, satellite imagery, port community system, Notice of
+  Readiness, and public notices) in addition to AIS. The agent reasons over these
+  sources to decide which claimed suspensions (e.g. a "bad weather" stoppage) actually
+  happened — only corroborated suspensions reduce counted laytime, so an unsupported
+  claim no longer discounts the demurrage owed. Runs on a local LLM when available,
+  with a deterministic fallback so the pipeline still works offline. Each source is
+  real-API-ready with an offline mock fallback.
 - **Fleet search** — filter the fleet by vessel name, IMO number or port as you type.
 
 ## Run the UI
@@ -76,6 +84,8 @@ cp .env.example .env                 # fill RPC_URL / ESCROW_ADDR / ATTESTOR_KEY
 ```
 agent/
   step1_parse_contract.py   # parse the charter party (Ollama, with regex fallback)
+  evidence_sources.py       # AIS, weather, satellite, PCS, NOR, news signals
+  step2b_reason_evidence.py # reason over the sources to decide corroborated suspensions
   step2_calculate.py        # demurrage with suspension deduction + AIS cross-check
   step3_settle_onchain.py   # on-chain settlement via web3
   audit_pipeline.py         # full pipeline -> structured result

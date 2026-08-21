@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AnchorClaim · Demurrage Audit & Settlement</title>
+<link rel="stylesheet" href="vendor/leaflet.css"/>
+<script src="vendor/leaflet.js"></script>
 <style>
   :root{
     --bg:#F4F7FA; --surface:#FFFFFF; --surface-2:#EEF3F8; --line:#DCE5EE;
@@ -83,6 +85,15 @@
   .map{position:relative;width:100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;
     background:linear-gradient(180deg,#EAF2FB 0%,#DCEAF6 100%)}
   .map svg{display:block;width:100%;height:auto}
+  #leafletMap{border-radius:14px}
+  .leaflet-container{border-radius:14px;font-family:var(--sans)}
+  .lmk{text-align:center;transform:translateY(-4px);cursor:pointer;transition:transform .12s;width:max-content}
+  .lmk:hover{transform:translateY(-6px) scale(1.06)}
+  .lmk .pin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 3px rgba(20,40,60,.35))}
+  .lmk .lbl{margin-top:-3px;display:inline-block;background:var(--surface);border:1px solid var(--line);
+    border-radius:8px;padding:3px 8px;font:600 11px var(--sans);color:var(--ink);white-space:nowrap;
+    box-shadow:var(--shadow)}
+  .lmk .vdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
   .map-markers{position:absolute;inset:0}
   .mk{position:absolute;transform:translate(-50%,-100%);cursor:pointer;text-align:center;
     transition:transform .15s}
@@ -165,6 +176,22 @@
     display:flex;align-items:center;gap:6px}
   .cache-note::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--teal)}
 
+  /* multi-source evidence panel */
+  .evidence{margin-top:20px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--surface)}
+  .ev-head{font:650 14px var(--sans);color:var(--navy);margin-bottom:12px;display:flex;
+    align-items:center;justify-content:space-between}
+  .ev-score{font:600 11px var(--mono);color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:3px 10px}
+  .ev-row{display:grid;grid-template-columns:24px 130px 1fr;gap:10px;align-items:center;padding:6px 0;
+    border-top:1px solid var(--line);font-size:12.5px}
+  .ev-row:first-of-type{border-top:none}
+  .ev-icon{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+    font:700 11px var(--sans);color:#fff}
+  .ev-icon.ok{background:var(--teal)} .ev-icon.warn{background:#D9A94B}
+  .ev-name{font-weight:640;color:var(--ink)}
+  .ev-note{color:var(--muted);font-family:var(--mono);font-size:11.5px}
+  .ev-gap{margin-top:10px;padding:9px 12px;background:#FBF3E0;border:1px solid #E7D3A3;border-radius:8px;
+    font-size:12px;color:#8A6516;line-height:1.5}
+
   /* editable charter party panel */
   .cp-wrap{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
   .cp-toggle{width:100%;text-align:left;background:var(--surface-2);border:none;padding:11px 16px;
@@ -242,13 +269,14 @@
       <div id="mapView">
         <div class="map-head">
           <div>
-            <div class="map-title">Fleet map — North Sea corridor</div>
+            <div class="map-title">Fleet map — Asia-Pacific corridor</div>
             <div class="map-sub">Click a vessel to open its audit. Search filters both the map and the list.</div>
           </div>
         </div>
         <div class="map" id="map">
-          <svg id="mapSvg" viewBox="0 0 700 460" preserveAspectRatio="xMidYMid meet"></svg>
-          <div class="map-markers" id="mapMarkers"></div>
+          <div id="leafletMap" style="width:100%;height:460px"></div>
+          <svg id="mapSvg" viewBox="0 0 700 460" preserveAspectRatio="xMidYMid meet" style="display:none"></svg>
+          <div class="map-markers" id="mapMarkers" style="display:none"></div>
         </div>
       </div>
       <div id="detail" style="display:none"></div>
@@ -275,15 +303,84 @@ const idle = document.getElementById('idle');
 const detail = document.getElementById('detail');
 const mapView = document.getElementById('mapView');
 
-// Port positions on the map viewBox (700x460). North Sea / NW Europe corridor.
+// Real port coordinates (lat, lng) for the Leaflet map; x/y are the offline SVG fallback.
 const PORTS = {
-  "Port of Rotterdam": {x:265, y:225, label:"Rotterdam"},
-  "Port of Hamburg":   {x:470, y:170, label:"Hamburg"},
-  "Port of Antwerp":   {x:215, y:320, label:"Antwerp"},
+  "Port of Singapore":  {lat:1.2900,  lng:103.8500, x:140, y:380, label:"Singapore"},
+  "Port of Hong Kong":  {lat:22.3000, lng:114.1700, x:420, y:250, label:"Hong Kong"},
+  "Port of Tokyo":      {lat:35.6800, lng:139.7700, x:620, y:110, label:"Tokyo"},
 };
-function portPos(name){ return PORTS[name] || {x:360, y:230, label:(name||'').replace('Port of ','')}; }
+function portPos(name){ return PORTS[name] || {lat:10.0,lng:115.0,x:360, y:260, label:(name||'').replace('Port of ','')}; }
 
 const VD = {demurrage:'vd-demurrage', none:'vd-none', dispute:'vd-dispute', needs_review:'vd-review'};
+const VD_COLOR = {demurrage:'#D9822B', none:'#128B6E', dispute:'#C6413B', needs_review:'#B37E1C', unrun:'#8FA3B4'};
+
+let LMAP=null, LMARKERS={}, useLeaflet=(typeof L!=='undefined');
+
+// --- Leaflet path (real map) ---
+function initLeaflet(){
+  if(!useLeaflet) return false;
+  try{
+    LMAP = L.map('leafletMap', {scrollWheelZoom:true, attributionControl:true});
+    const bounds = L.latLngBounds(Object.values(PORTS).map(p=>[p.lat, p.lng]));
+    LMAP.fitBounds(bounds, {padding:[60,60]});
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom:19,
+      attribution:'&copy; OpenStreetMap contributors'
+    });
+    // if no tiles load within 4s, assume offline and drop to the SVG map
+    let loaded=false;
+    tiles.on('load', ()=>{ loaded=true; });
+    tiles.on('tileerror', ()=>{ if(!loaded){ /* keep waiting; timeout decides */ } });
+    tiles.addTo(LMAP);
+    setTimeout(()=>{ if(!loaded && mapView.style.display!=='none'){ teardownLeaflet(); useSvgFallback(); } }, 4000);
+    return true;
+  }catch(e){ useLeaflet=false; return false; }
+}
+
+function teardownLeaflet(){
+  try{ if(LMAP){ LMAP.remove(); LMAP=null; LMARKERS={}; } }catch(e){}
+  useLeaflet=false;
+}
+
+function vesselIcon(vd, color){
+  return L.divIcon({
+    className:'', iconSize:[140,44], iconAnchor:[70,44],
+    html:`<div class="lmk"><div class="pin">🚢</div>
+      <div class="lbl"><span class="vdot" style="background:${color}"></span>{name}</div></div>`
+  });
+}
+
+function renderLeafletMarkers(){
+  if(!LMAP) return;
+  Object.values(LMARKERS).forEach(m=>LMAP.removeLayer(m)); LMARKERS={};
+  const q=(document.getElementById('search').value||'').trim().toLowerCase();
+  // fan out multiple vessels sharing a port so labels don't collide
+  const byPort={}; Object.values(DATA).forEach(v=>{(byPort[v.port]=byPort[v.port]||[]).push(v);});
+  for(const [port,vs] of Object.entries(byPort)){
+    const p=portPos(port);
+    vs.forEach((v,i)=>{
+      const search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
+      if(q && !search.includes(q)) return;
+      const off=(i-(vs.length-1)/2)*0.08;   // small lng offset in degrees
+      const color=VD_COLOR[v._verdict||'unrun']||VD_COLOR.unrun;
+      const icon=L.divIcon({className:'', iconSize:[150,46], iconAnchor:[20,44],
+        html:`<div class="lmk"><div class="pin">🚢</div>
+          <div class="lbl"><span class="vdot" style="background:${color}"></span>${v.vessel}</div></div>`});
+      const m=L.marker([p.lat, p.lng+off], {icon}).addTo(LMAP);
+      m.on('click', ()=>select(v.id));
+      LMARKERS[v.id]=m;
+    });
+  }
+}
+
+// --- SVG fallback path (offline) ---
+function useSvgFallback(){
+  useLeaflet=false;
+  document.getElementById('leafletMap').style.display='none';
+  document.getElementById('mapSvg').style.display='';
+  document.getElementById('mapMarkers').style.display='';
+  drawMapBase(); renderSvgMarkers();
+}
 
 function drawMapBase(){
   const svg=document.getElementById('mapSvg');
@@ -294,13 +391,13 @@ function drawMapBase(){
       </linearGradient>
     </defs>
     <rect x="0" y="0" width="700" height="460" fill="url(#sea)"/>
-    <path d="M120,460 L120,300 Q160,270 200,285 Q240,300 250,270 L270,250
-             Q300,230 340,245 L380,210 Q430,190 470,205 L520,180
-             Q560,170 600,185 L700,170 L700,460 Z"
+    <path d="M0,460 L0,400 Q60,410 110,395 Q160,380 200,400 L230,430 L230,460 Z"
           fill="#E7EFDF" stroke="#CBD9C4" stroke-width="1.5"/>
-    <path d="M60,240 Q90,220 110,250 Q120,290 90,320 Q60,330 55,300 Q50,265 60,240 Z"
+    <path d="M340,300 Q380,260 430,270 Q470,285 460,320 Q430,350 390,340 Q350,330 340,300 Z"
           fill="#E7EFDF" stroke="#CBD9C4" stroke-width="1.5"/>
-    <text x="600" y="430" class="port-label" opacity="0.6">North Sea corridor</text>`;
+    <path d="M540,180 Q580,140 630,150 Q670,165 660,200 Q640,230 600,215 Q560,205 540,180 Z"
+          fill="#E7EFDF" stroke="#CBD9C4" stroke-width="1.5"/>
+    <text x="600" y="430" class="port-label" opacity="0.6">Asia-Pacific corridor (offline map)</text>`;
   for(const [name,p] of Object.entries(PORTS)){
     const c=document.createElementNS("http://www.w3.org/2000/svg","circle");
     c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r","4");
@@ -313,7 +410,7 @@ function drawMapBase(){
   }
 }
 
-function renderMapMarkers(){
+function renderSvgMarkers(){
   const wrap=document.getElementById('mapMarkers');
   const mapEl=document.getElementById('map');
   const W=mapEl.clientWidth||700, H=W*(460/700);
@@ -336,7 +433,19 @@ function renderMapMarkers(){
     });
   }
 }
-window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') renderMapMarkers(); });
+
+// unified entry points used elsewhere in the app
+function drawMap(){
+  if(useLeaflet && initLeaflet()){ renderLeafletMarkers(); }
+  else { useSvgFallback(); }
+}
+function renderMapMarkers(){
+  if(useLeaflet && LMAP){ renderLeafletMarkers(); }
+  else { renderSvgMarkers(); }
+}
+window.addEventListener('resize', ()=>{
+  if(mapView && mapView.style.display!=='none' && !useLeaflet) renderSvgMarkers();
+});
 
 function cardInner(v){
   const badge = v.cached && v._verdict
@@ -371,8 +480,7 @@ async function boot(){
     }
     wireSearch();
     wireClearCache();
-    drawMapBase();
-    renderMapMarkers();
+    drawMap();
   }catch(e){
     mapView.innerHTML=`<div class="idle" style="display:block">Cannot reach the Python backend (${e.message}).<br><br>
       Start it first:<br><code>cd backend &amp;&amp; pip install flask &amp;&amp; python server.py</code><br>
@@ -391,11 +499,14 @@ function wireSearch(){
       el.classList.toggle('hidden',!match);
       if(match) visible++;
     });
-    // filter map markers in sync with the list
-    document.querySelectorAll('.mk').forEach(el=>{
-      const match=!q || (el.dataset.search||'').includes(q);
-      el.classList.toggle('hidden',!match);
-    });
+    // filter the map: leaflet re-renders (honours the query), svg toggles DOM nodes
+    if(useLeaflet && LMAP){ renderLeafletMarkers(); }
+    else {
+      document.querySelectorAll('.mk').forEach(el=>{
+        const match=!q || (el.dataset.search||'').includes(q);
+        el.classList.toggle('hidden',!match);
+      });
+    }
     noRes.style.display = visible===0 ? 'block' : 'none';
   });
 }
@@ -428,8 +539,11 @@ function markCardCached(id, verdictType){
   v.cached = true; v._verdict = verdictType;
   const el = fleet.querySelector(`[data-id="${id}"]`);
   if(el) el.innerHTML = cardInner(v);
-  const mk = document.querySelector(`.mk[data-id="${id}"] .vdot`);
-  if(mk) mk.className = `vdot ${VD[verdictType]||'vd-unrun'}`;
+  if(useLeaflet && LMAP){ renderLeafletMarkers(); }
+  else {
+    const mk = document.querySelector(`.mk[data-id="${id}"] .vdot`);
+    if(mk) mk.className = `vdot ${VD[verdictType]||'vd-unrun'}`;
+  }
 }
 
 const fmt = n => '$'+Number(n).toLocaleString('en-US');
@@ -495,7 +609,8 @@ function backToMap(){
   activeId=null;
   detail.style.display='none'; mapView.style.display='block';
   document.querySelectorAll('.voyage').forEach(el=>el.classList.remove('active'));
-  renderMapMarkers();
+  if(useLeaflet && LMAP){ setTimeout(()=>{ LMAP.invalidateSize(); renderLeafletMarkers(); }, 50); }
+  else renderMapMarkers();
 }
 
 // Render a completed audit instantly (no typing animation) — used when returning
@@ -647,7 +762,7 @@ function calcBreakdown(R){
   const conds=(c.suspension_conditions||[]).join(', ');
   const rows=[
     ['Gross time in port', `${rc.gross_duration_hours}h`, 'berthing → departure'],
-    ['− Excluded (per contract)', `${rc.excluded_hours}h`, conds?`clauses: ${conds}`:'no exclusions applied'],
+    ['− Excluded (evidence-corroborated)', `${rc.excluded_hours}h`, conds?`clauses: ${conds}`:'no exclusions applied'],
     ['= Counted laytime', `${rc.counted_laytime_hours}h`, ''],
     ['− Allowed laytime', `${c.laytime_hours}h`, 'from charter party'],
     ['= Excess time', `${rc.excess_time_hours}h`, ''],
@@ -662,8 +777,51 @@ function calcBreakdown(R){
     <div class="bd">${body}</div></details>`;
 }
 
+function evidencePanel(R){
+  const ev=R.evidence; if(!ev) return '';
+  const S=ev.sources||{};
+  const rows=[
+    ['AIS', R.check && R.check.consistent, R.check?`in-port ${R.check.ais_hours}h vs port log ${R.check.sof_hours}h`:''],
+    ['Weather', S.weather && S.weather.ok, S.weather ? (S.weather.checked?`${S.weather.corroborated.length}/${S.weather.checked} weather suspensions corroborated`:'no weather claims'):''],
+    ['Satellite', S.satellite && S.satellite.ok, S.satellite? S.satellite.note:''],
+    ['Port Community', S.port_community && S.port_community.ok, S.port_community?`official record delta ${S.port_community.delta_hours}h`:''],
+    ['NOR', S.nor && S.nor.ok, S.nor? S.nor.note:''],
+    ['News / notices', S.news && S.news.ok, S.news ? (S.news.checked?`${S.news.corroborated.length}/${S.news.checked} claims found in notices`:'no strike/closure claims'):''],
+  ];
+  const okCount=rows.filter(r=>r[1]).length;
+  const body=rows.map(r=>`<div class="ev-row">
+      <span class="ev-icon ${r[1]?'ok':'warn'}">${r[1]?'✓':'!'}</span>
+      <span class="ev-name">${r[0]}</span>
+      <span class="ev-note">${r[2]||''}</span></div>`).join('');
+  const gaps=(ev.unsupported_claims||[]).length
+    ? `<div class="ev-gap">⚠ ${ev.unsupported_claims.length} unsupported claim(s): ${ev.unsupported_claims.join('; ')}</div>` : '';
+  return `<div class="evidence">
+    <div class="ev-head">Multi-source verification
+      <span class="ev-score">${okCount}/${rows.length} sources corroborate</span></div>
+    ${body}${gaps}</div>`;
+}
+
+function reasoningPanel(R){
+  const rs=R.reasoning; if(!rs || !(rs.suspension_decisions||[]).length) return '';
+  const modeLabel = rs.mode==='llm' ? 'reasoned by LLM' : 'deterministic fallback (no LLM)';
+  const rows = rs.suspension_decisions.map(d=>`<div class="ev-row">
+      <span class="ev-icon ${d.corroborated?'ok':'warn'}">${d.corroborated?'✓':'!'}</span>
+      <span class="ev-name">${d.reason}</span>
+      <span class="ev-note">${d.corroborated?'deducted':'NOT deducted'} — ${d.explanation}</span></div>`).join('');
+  const sofNote = rs.ais_sof_note
+    ? `<div class="ev-gap">AIS/SoF timeline check: ${rs.ais_sof_note}</div>` : '';
+  return `<div class="evidence">
+    <div class="ev-head">Suspension reasoning
+      <span class="ev-score">${modeLabel}</span></div>
+    ${rows}${sofNote}</div>`;
+}
+
 function renderResult(R){
   const res=document.getElementById('result');
+  const epHtml=evidencePanel(R);
+  if(epHtml){ const ep=document.createElement('div'); ep.innerHTML=epHtml; res.appendChild(ep.firstElementChild); }
+  const rpHtml=reasoningPanel(R);
+  if(rpHtml){ const rp=document.createElement('div'); rp.innerHTML=rpHtml; res.appendChild(rp.firstElementChild); }
   const v=R.verdict, rc=R.receipt, c=R.contract;
   const block=document.createElement('div');
   if (v.type==='dispute'){

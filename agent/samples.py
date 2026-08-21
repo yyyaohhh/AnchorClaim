@@ -8,12 +8,12 @@ SAMPLE_VOYAGES = {
     "0xVOYAGE_OCEANSTAR": {
         "vessel": "MV Ocean Star",
         "imo": "9321483",
-        "port": "Port of Rotterdam",
+        "port": "Port of Singapore",
         "contract_text": """
 CHARTER PARTY AGREEMENT SUMMARY
 Vessel Name: MV Ocean Star
 Port of Loading: Port of Shanghai
-Port of Discharge: Port of Rotterdam
+Port of Discharge: Port of Singapore
 
 LAYTIME CLAUSE:
 Total allowed laytime for loading and discharging operations shall be 48 hours in total.
@@ -27,6 +27,7 @@ Time lost due to bad weather, strikes, port closures, or force majeure events sh
         "ais_port_log": {
             "vessel_name": "MV Ocean Star",
             "arrival_anchorage": "2026/08/10 08:00:00",
+            "nor_tendered": "2026/08/10 09:00:00",
             "berthing_time": "2026/08/10 12:00:00",
             "departure_time": "2026/08/14 12:00:00",  # 96h gross
         },
@@ -41,12 +42,12 @@ Time lost due to bad weather, strikes, port closures, or force majeure events sh
     "0xVOYAGE_NORDWIND": {
         "vessel": "MV Nord Wind",
         "imo": "9445678",
-        "port": "Port of Hamburg",
+        "port": "Port of Hong Kong",
         "contract_text": """
 CHARTER PARTY AGREEMENT SUMMARY
 Vessel Name: MV Nord Wind
 Port of Loading: Port of Singapore
-Port of Discharge: Port of Hamburg
+Port of Discharge: Port of Hong Kong
 
 LAYTIME CLAUSE:
 Total allowed laytime shall be 72 hours in total.
@@ -60,6 +61,7 @@ Time lost due to bad weather, strikes, or port congestion shall not count as lay
         "ais_port_log": {
             "vessel_name": "MV Nord Wind",
             "arrival_anchorage": "2026/08/07 00:00:00",
+            "nor_tendered": "2026/08/07 00:00:00",
             "berthing_time": "2026/08/07 00:00:00",
             "departure_time": "2026/08/11 00:00:00",  # 96h gross
         },
@@ -74,12 +76,12 @@ Time lost due to bad weather, strikes, or port congestion shall not count as lay
     "0xVOYAGE_DELTASPIRIT": {
         "vessel": "MV Delta Spirit",
         "imo": "9550011",
-        "port": "Port of Antwerp",
+        "port": "Port of Tokyo",
         "contract_text": """
 CHARTER PARTY AGREEMENT SUMMARY
 Vessel Name: MV Delta Spirit
 Port of Loading: Port of Busan
-Port of Discharge: Port of Antwerp
+Port of Discharge: Port of Tokyo
 
 LAYTIME CLAUSE:
 Total allowed laytime shall be 48 hours in total.
@@ -94,6 +96,7 @@ Time lost due to bad weather shall not count as laytime.
         "ais_port_log": {
             "vessel_name": "MV Delta Spirit",
             "arrival_anchorage": "2026/08/02 00:00:00",
+            "nor_tendered": "2026/08/02 00:00:00",
             "berthing_time": "2026/08/02 02:00:00",
             "departure_time": "2026/08/03 18:00:00",  # 40h gross (suspiciously low)
         },
