@@ -56,6 +56,18 @@
     --shadow-lg:0 26px 64px -22px rgba(0,0,0,.6);
   }
 
+  /* Role color identity — shipowner (blue) vs charterer (warm copper) */
+  body[data-view="demo"][data-role="charterer"],
+  body[data-view="fleet"][data-role="charterer"]{
+    --accent:#C2700D; --accent-strong:#9A5608; --accent-soft:#FBEFDC;
+    --glow:rgba(194,112,13,.16); --wave:rgba(194,112,13,.30); --ship:#C2700D; --bathy:rgba(194,112,13,.16);
+  }
+  body[data-view="demo"][data-theme="dark"][data-role="charterer"],
+  body[data-view="fleet"][data-theme="dark"][data-role="charterer"]{
+    --accent:#F0A04B; --accent-strong:#FFC68A; --accent-soft:#2E200D;
+    --glow:rgba(240,160,75,.18); --wave:rgba(240,160,75,.26); --ship:#F0A04B; --bathy:rgba(240,160,75,.14);
+  }
+
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;
@@ -1001,6 +1013,7 @@ const mapView = document.getElementById('mapView');
 /* ---------------- Role (multi-party view) ---------------- */
 function setRole(role){
   ROLE = role;
+  document.body.dataset.role = role;
   document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role===role));
   renderKPIs();
   applyFleetRole();
@@ -1705,6 +1718,7 @@ qnaRefreshStatus();
 
 /* ---------------- Boot ---------------- */
 async function boot(){
+  setRole(ROLE);
   fleet.innerHTML=`<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
   try{
     const r=await fetch(API+"/api/voyages");
