@@ -367,8 +367,28 @@
   .legend{display:flex;gap:14px;flex-wrap:wrap;font:500 11px var(--sans);color:var(--muted)}
   .legend span{display:flex;align-items:center;gap:6px}
   .legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
-  .map{position:relative;width:100%;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:linear-gradient(180deg,var(--sea-1),var(--sea-2));box-shadow:var(--shadow-sm)}
-  .map svg{display:block;width:100%;height:auto}
+  .map{position:relative;width:100%;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);
+    min-height:min(72vh,640px);display:flex;align-items:center;justify-content:center;overflow:hidden;
+    background:radial-gradient(130% 90% at 50% 0%, var(--glow), transparent 60%), linear-gradient(180deg,var(--surface-3),var(--bg-soft))}
+  .globe{position:relative;width:min(520px,84%);aspect-ratio:1;border-radius:50%;overflow:hidden;flex:none;
+    background:#0B2440;box-shadow:0 0 0 1px var(--line-strong),0 34px 80px -34px rgba(6,14,24,.7)}
+  .globe-spin{position:absolute;top:0;left:0;height:100%;display:flex;will-change:transform}
+  .globe-tile{position:relative;height:100%;flex:none;background-size:100% 100%;background-repeat:no-repeat;background-position:left top}
+  .globe-shade{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    background:radial-gradient(125% 125% at 32% 24%, rgba(255,255,255,.20), rgba(255,255,255,0) 46%),
+      radial-gradient(118% 118% at 50% 50%, rgba(255,255,255,0) 56%, rgba(4,12,22,.36) 84%, rgba(3,10,18,.64) 100%)}
+  .globe-caption{position:absolute;left:50%;bottom:15px;transform:translateX(-50%);font:600 10px var(--mono);letter-spacing:2px;color:rgba(255,255,255,.82);
+    background:rgba(4,14,24,.45);padding:5px 13px;border-radius:999px;backdrop-filter:blur(4px);pointer-events:none;white-space:nowrap}
+  .gp{position:absolute;transform:translate(-50%,-50%);cursor:pointer;border:none;background:none;padding:0;text-align:center;line-height:1}
+  .gp .dot{display:block;width:9px;height:9px;border-radius:50%;background:var(--accent);color:var(--accent);margin:0 auto;position:relative;transition:transform .15s}
+  .gp .dot::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid currentColor;opacity:.8;animation:gppulse 2.8s ease-out infinite}
+  .gp:hover .dot{transform:scale(1.4)}
+  @keyframes gppulse{0%{transform:scale(.45);opacity:.9}70%{transform:scale(2);opacity:0}100%{transform:scale(2);opacity:0}}
+  .gp.worst-demurrage .dot{background:var(--amber);color:var(--amber)}
+  .gp.worst-dispute .dot{background:var(--red);color:var(--red)}
+  .gp.worst-review .dot{background:var(--gold);color:var(--gold)}
+  .gp.worst-none .dot{background:var(--teal);color:var(--teal)}
+  .gp .pname{display:block;margin-top:5px;font:700 8px var(--sans);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.5);white-space:nowrap;letter-spacing:.2px}
   .grid-line{stroke:var(--line);stroke-width:1;opacity:.4}
   .bathy{fill:none;stroke:var(--bathy);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:2 6}
   .route{fill:none;stroke:var(--bathy);stroke-width:1.8;stroke-dasharray:5 9;stroke-linecap:round;opacity:.9}
@@ -872,7 +892,7 @@
       <main class="stage" id="stage">
         <div id="mapView">
           <div class="map-head">
-            <div><div class="map-title">Fleet map — live positions</div><div class="map-sub">Real coordinates across the Asia-Pacific book. Click a vessel to drill into its audit.</div></div>
+            <div><div class="map-title">Fleet map — live world positions</div><div class="map-sub">A rotating globe built from live port coordinates. Click any port to open its latest voyage audit.</div></div>
             <div class="legend">
               <span><i style="background:var(--amber)"></i>Demurrage</span>
               <span><i style="background:var(--teal)"></i>No demurrage</span>
@@ -881,8 +901,11 @@
             </div>
           </div>
           <div class="map" id="map">
-            <svg id="mapSvg" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet"></svg>
-            <div class="map-markers" id="mapMarkers"></div>
+            <div class="globe" id="globe">
+              <div class="globe-spin" id="globeSpin"></div>
+              <div class="globe-shade"></div>
+              <div class="globe-caption">ROTATING GLOBE · LIVE</div>
+            </div>
           </div>
         </div>
         <div id="detail" style="display:none"></div>
@@ -1050,7 +1073,7 @@ document.getElementById('themeToggle').addEventListener('click', ()=>{
 function showDemo(){
   document.body.setAttribute('data-view','demo');
   window.scrollTo(0,0);
-  requestAnimationFrame(()=>renderMapMarkers());
+  requestAnimationFrame(()=>buildGlobe());
 }
 function showLanding(){
   document.body.setAttribute('data-view','landing');
@@ -1138,161 +1161,112 @@ const PORT_COORDS = {
   "Port of Shenzhen":[22.54,114.06],
   "Port Klang":[3.03,101.45],
 };
-// Regional equirectangular projection over the Asia-Pacific operating region.
-const MAP_W=1000, MAP_H=520;
-const MB={latMin:-12,latMax:42,lngMin:95,lngMax:150};
-const projR=(lat,lng)=>[ (lng-MB.lngMin)/(MB.lngMax-MB.lngMin)*MAP_W, (MB.latMax-lat)/(MB.latMax-MB.latMin)*MAP_H ];
+// World-map globe built from the uploaded equirectangular texture (full -180..180 x -90..90).
+const WM = { AR: 2400/1174, IMG: 'images/map.jpg' };
+const worldXY = (lat,lng)=>[ (lng+180)/360, (90-lat)/180 ];
 const fmtCoord=([lat,lng])=>`${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'} ${Math.abs(lng).toFixed(2)}°${lng>=0?'E':'W'}`;
-
-// Landmasses as [lat,lng] polygons (East & Southeast Asia + West Pacific).
-const LAND=[
-  [[42,95],[42,102],[39,108],[35,112],[31,113],[27,114],[23,112],[21,108],[17,105],[14,101],[12,97],[10,99],[13,102],[17,106],[21,110],[24,114],[26,118],[28,122],[31,122],[34,122],[37,126],[39,130],[40,135],[41,140],[42,145],[43,150],[43,120],[42,95]],
-  [[45,140],[43,144],[39,142],[35,140],[31,136],[30,131],[31,129],[33,131],[35,134],[37,131],[38,130],[40,131],[42,133],[45,140]],
-  [[25.1,120],[24.8,121.9],[23.0,121.5],[22.1,120.6],[23.0,120.1],[25.1,120]],
-  [[18.6,120],[17.2,122],[14.1,122],[12.6,121],[13.6,120],[16.0,120],[18.6,120]],
-  [[8,98],[6.5,100],[4.5,100.5],[2.6,102],[1.3,103.7],[2.4,104.4],[5,103.8],[7,102.8],[8.5,101],[8,98]],
-  [[5.7,95.3],[4,97],[0.5,99],[-1,102],[-3,104],[-5.5,106],[0,106.2],[3,104],[5,102],[5.7,95.3]],
-  [[7,109],[4,113],[1,115],[-2.5,117],[-2,119],[1,118.6],[4,117],[7,114],[7,109]],
-];
-
-// Simplified world outline (for the locator inset).
-const WORLD=[
-  [[70,-165],[66,-135],[60,-95],[55,-75],[42,-70],[30,-78],[24,-88],[26,-105],[35,-120],[55,-130],[70,-165]],
-  [[75,-45],[70,-22],[80,-28],[83,-50],[75,-45]],
-  [[10,-78],[5,-60],[-6,-45],[-16,-40],[-26,-45],[-46,-54],[-53,-68],[-44,-72],[-24,-70],[-8,-72],[10,-78]],
-  [[35,-8],[30,15],[31,32],[10,40],[-6,35],[-22,24],[-34,8],[-22,-6],[-8,-5],[10,-3],[24,-6],[35,-8]],
-  [[60,8],[50,24],[46,38],[38,46],[38,35],[46,20],[60,8]],
-  [[70,60],[75,100],[72,125],[58,140],[44,135],[34,120],[28,104],[22,76],[28,60],[42,46],[56,45],[70,60]],
-  [[22,72],[20,78],[12,80],[8,76],[15,72],[22,72]],
-  [[-12,115],[-18,125],[-23,135],[-28,145],[-38,150],[-38,140],[-33,128],[-27,120],[-19,113],[-12,115]],
-];
-
-const polyD=(pts,proj)=>{
-  const c=pts.map(p=>proj(p[0],p[1]));
-  let d=`M ${c[0][0].toFixed(1)} ${c[0][1].toFixed(1)}`;
-  for(let i=1;i<c.length;i++) d+=` L ${c[i][0].toFixed(1)} ${c[i][1].toFixed(1)}`;
-  return d+' Z';
+const GLOBE = { tileW:0, D:0, offset:0, speed:24, paused:false, raf:0, last:0, built:false, offsetSet:false };
+const statusRank = s => s==='dispute'?3 : s==='demurrage'?2 : s==='review'?1 : 0;
+const PORT_SHORT = {
+  "Port of Singapore":"Singapore","Port of Hong Kong":"Hong Kong","Port of Tokyo":"Tokyo",
+  "Port of Shanghai":"Shanghai","Port of Busan":"Busan","Port of Kaohsiung":"Kaohsiung",
+  "Port of Manila":"Manila","Port of Osaka":"Osaka","Port of Shenzhen":"Shenzhen","Port Klang":"Klang",
 };
 
-const ROUTES=[
-  {a:[1.29,103.82],b:[22.30,114.17],ship:'var(--teal)',dur:'26s',begin:'0s'},
-  {a:[22.30,114.17],b:[35.68,139.68],ship:'var(--amber)',dur:'30s',begin:'2.5s'},
-  {a:[31.23,121.47],b:[34.69,135.50],ship:'var(--accent)',dur:'22s',begin:'5s'},
-];
-const routeD=(a,b)=>{
-  const [x1,y1]=projR(a[0],a[1]); const [x2,y2]=projR(b[0],b[1]);
-  const mx=(x1+x2)/2, my=Math.min(y1,y2)-(Math.abs(x2-x1)*0.12+10);
-  return `M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
-};
-
-function drawMapBase(){
-  const svg=document.getElementById('mapSvg');
-  const NS="http://www.w3.org/2000/svg";
-
-  const grid=[];
-  [0,10,20,30,40].forEach(lat=>{ grid.push(`<path d="M0 ${projR(lat,MB.lngMin)[1].toFixed(1)} H ${MAP_W}"/>`); });
-  [100,110,120,130,140].forEach(lng=>{ grid.push(`<path d="M${projR(MB.latMin,lng)[0].toFixed(1)} 0 V ${MAP_H}"/>`); });
-
-  const landSvg=LAND.map(p=>{
-    const d=polyD(p,projR);
-    return `<path class="coastfoam" d="${d}"/><path d="${d}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>`;
-  }).join('');
-
-  const lngLabels=[100,110,120,130].map(lng=>{
-    const [x]=projR(0,lng);
-    return `<text x="${x.toFixed(1)}" y="${MAP_H-9}" class="coord" text-anchor="middle">${lng}°E</text>`;
-  }).join('');
-  const latLabels=[0,10,20,30,40].map(lat=>{
-    const [,y]=projR(lat,MB.lngMin);
-    return `<text x="8" y="${(y+3).toFixed(1)}" class="coord">${lat}°N</text>`;
-  }).join('');
-
-  // World locator inset (bottom-right): mini globe + highlighted operating region.
-  const insX=766, insY=400, iw=224, ih=112;
-  const wproj=(lat,lng)=>[ (lng+180)/360*iw, (90-lat)/180*ih ];
-  const wland=WORLD.map(p=>`<path d="${polyD(p,wproj)}" fill="var(--land)" stroke="var(--land-line)" stroke-width=".6"/>`).join('');
-  const [rrx,rry]=wproj(38,95), [rrx2,rry2]=wproj(-10,150);
-  const locator=`<g transform="translate(${insX},${insY})">
-      <rect x="0" y="0" width="${iw}" height="${ih}" rx="8" fill="var(--surface)" fill-opacity=".72" stroke="var(--line-strong)"/>
-      ${wland}
-      <rect x="${rrx.toFixed(1)}" y="${rry.toFixed(1)}" width="${(rrx2-rrx).toFixed(1)}" height="${(rry2-rry).toFixed(1)}" rx="3" fill="var(--accent)" opacity=".22" stroke="var(--accent)" stroke-width="1.2"/>
-      <text x="${iw/2}" y="${ih-9}" text-anchor="middle" class="coord" font-size="8.5" fill="var(--muted)">ASIA-PACIFIC</text>
-    </g>`;
-
-  svg.innerHTML = `
-    <defs>
-      <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="var(--sea-1)"/><stop offset="1" stop-color="var(--sea-2)"/>
-      </linearGradient>
-    </defs>
-    <rect x="0" y="0" width="${MAP_W}" height="${MAP_H}" fill="url(#sea)"/>
-    <g class="grid-line">${grid.join('')}</g>
-    <path class="bathy" d="M0 210 Q 160 180 340 204 T 660 196 T 1000 205"/>
-    <path class="bathy" d="M0 335 Q 220 308 470 330 T 1000 316"/>
-    ${ROUTES.map(r=>`<path class="route" d="${routeD(r.a,r.b)}"/>`).join('')}
-    ${landSvg}
-    <text x="${MAP_W-12}" y="44" class="port-label" opacity=".6" text-anchor="end" font-size="11">WESTERN PACIFIC</text>
-    ${lngLabels}${latLabels}
-    <g class="compass" transform="translate(926,74)">
-      <circle r="16" fill="var(--surface)" fill-opacity=".7" stroke="var(--line-strong)"/>
-      <path d="M0,-11 L4,-2 L0,-5 L-4,-2 Z" fill="var(--accent)"/>
-      <path d="M0,11 L4,2 L0,5 L-4,2 Z" fill="var(--faint)"/>
-      <text y="-20" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">N</text>
-    </g>
-    <g class="compass" transform="translate(20,462)">
-      <line x1="0" y1="0" x2="90" y2="0" stroke="var(--line-strong)" stroke-width="2.2"/>
-      <line x1="0" y1="-4" x2="0" y2="4" stroke="var(--line-strong)" stroke-width="2.2"/>
-      <line x1="90" y1="-4" x2="90" y2="4" stroke="var(--line-strong)" stroke-width="2.2"/>
-      <text x="0" y="15" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">0</text>
-      <text x="90" y="15" text-anchor="end" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">500 nm</text>
-    </g>
-    ${locator}
-    ${ROUTES.map(r=>`
-      <g>
-        <circle r="4" fill="${r.ship}" opacity=".22"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${routeD(r.a,r.b)}" begin="${r.begin}"/></circle>
-        <circle r="2.3" fill="${r.ship}"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${routeD(r.a,r.b)}" begin="${r.begin}"/></circle>
-      </g>`).join('')}`;
-
-  // Reference port dots for the whole operating network.
-  for(const [name,ll] of Object.entries(PORT_COORDS)){
-    const [x,y]=projR(ll[0],ll[1]);
-    const c=document.createElementNS(NS,"circle");
-    c.setAttribute("cx",x.toFixed(1)); c.setAttribute("cy",y.toFixed(1)); c.setAttribute("r","3.5");
-    c.setAttribute("fill","var(--accent)"); c.setAttribute("opacity",".5");
-    svg.appendChild(c);
-    const t=document.createElementNS(NS,"text");
-    t.setAttribute("x",(x+8).toFixed(1)); t.setAttribute("y",(y+3.5).toFixed(1));
-    t.setAttribute("class","port-label"); t.setAttribute("font-size","10");
-    t.textContent=name.replace('Port of ','').replace('Port ','');
-    svg.appendChild(t);
+function buildGlobe(){
+  const globe = document.getElementById('globe'); if(!globe) return;
+  const spin = document.getElementById('globeSpin'); if(!spin) return;
+  const D = globe.clientWidth || GLOBE.D || 520;
+  const tileW = Math.round(D * WM.AR);
+  GLOBE.D = D;
+  if(GLOBE.tileW) GLOBE.offset = GLOBE.offset / GLOBE.tileW * tileW;  // preserve rotation phase across resizes
+  GLOBE.tileW = tileW;
+  if(!GLOBE.offsetSet){ const c=(118+180)/360; GLOBE.offset = (c*tileW - D/2 + tileW) % tileW; GLOBE.offsetSet = true; }
+  spin.style.height = D+'px';
+  spin.style.width = (tileW*2)+'px';
+  for(let i=0;i<2;i++){
+    if(!spin.children[i]){
+      const t = document.createElement('div'); t.className = 'globe-tile';
+      const m = document.createElement('div'); m.className = 'tile-marks';
+      t.appendChild(m); spin.appendChild(t);
+    }
+    const t = spin.children[i];
+    t.style.width = tileW+'px'; t.style.height = D+'px';
+    t.style.backgroundImage = `url('${WM.IMG}')`;
   }
+  if(!globe.dataset.bound){
+    globe.dataset.bound = '1';
+    globe.addEventListener('mouseenter', ()=>{ GLOBE.paused = true; });
+    globe.addEventListener('mouseleave', ()=>{ GLOBE.paused = false; });
+  }
+  GLOBE.built = true;
+  if(!GLOBE.raf) startGlobeSpin();
+  renderMapMarkers();
 }
+
+function startGlobeSpin(){
+  const spin = document.getElementById('globeSpin');
+  const loop = (ts)=>{
+    if(!GLOBE.last) GLOBE.last = ts;
+    const dt = Math.min(100, ts - GLOBE.last)/1000;
+    GLOBE.last = ts;
+    if(!GLOBE.paused && mapView && mapView.style.display!=='none'){
+      GLOBE.offset = (GLOBE.offset + GLOBE.speed*dt) % GLOBE.tileW;
+    }
+    spin.style.transform = `translateX(${(-GLOBE.offset).toFixed(2)}px)`;
+    GLOBE.raf = requestAnimationFrame(loop);
+  };
+  GLOBE.raf = requestAnimationFrame(loop);
+}
+
+function firstIdOfPort(port){
+  const v = Object.values(DATA).find(v=>v.port===port);
+  return v ? v.id : null;
+}
+async function openPort(name){
+  const local = firstIdOfPort(name);
+  if(local){ select(local.id); return; }
+  try{
+    if(!FLEET) await loadFleet();
+    const f = (FLEET && FLEET.voyages || []).find(v=>v.port===name);
+    if(f){ drillIntoFleet(f.id); return; }
+    toast('No voyage assigned to '+name+' yet.','info');
+  }catch(e){ toast('Could not load fleet: '+e.message,'err'); }
+}
+
+// (previous SVG map removed — replaced by the rotating globe above)
 
 function renderMapMarkers(){
-  const wrap=document.getElementById('mapMarkers');
-  const mapEl=document.getElementById('map');
-  const W=mapEl.clientWidth||MAP_W, H=W*(MAP_H/MAP_W);
-  wrap.innerHTML='';
-  const seen={};
+  if(!GLOBE.built) return;
+  const agg = new Map();
   Object.values(DATA).forEach(v=>{
-    const ll=(v.lat!=null && v.lng!=null) ? [v.lat,v.lng] : (PORT_COORDS[v.port]||[10,115]);
-    const [mx,my]=projR(ll[0],ll[1]);
-    const n=seen[v.port]=(seen[v.port]||0)+1;
-    const off=n>1 ? ((n%2===0?1:-1)*Math.ceil(n/2)*50) : 0;
-    const px=(mx+off)/MAP_W*W, py=(my-14)/MAP_H*H;
-    const s=statusOf(v);
-    const vd=s==='unrun' ? 'vd-unrun' : (VD[v._verdict]||'vd-unrun');
-    const el=document.createElement('button');
-    el.className='mk'; el.dataset.id=v.id; el.dataset.vd=v._verdict||'unrun';
-    el.dataset.search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
-    el.style.left=px+'px'; el.style.top=py+'px';
-    el.title=`${v.vessel} · ${v.port} · ${fmtCoord(ll)} · ${s}`;
-    el.innerHTML=`<div class="ship">${anchorSvg}</div><div class="lbl"><span><span class="vdot ${vd}"></span>${v.vessel}</span><span class="mcoord">${fmtCoord(ll)}</span></div>`;
-    el.onclick=()=>select(v.id);
-    wrap.appendChild(el);
+    if(!PORT_COORDS[v.port]) return;
+    if(!agg.has(v.port)){
+      const ll = (v.lat!=null && v.lng!=null) ? [v.lat,v.lng] : PORT_COORDS[v.port];
+      agg.set(v.port,{count:0,worst:'none',lat:ll[0],lng:ll[1]});
+    }
+    const m = agg.get(v.port); m.count++;
+    const s = v._verdict || 'unrun';
+    if(statusRank(s) > statusRank(m.worst)) m.worst = s;
+  });
+  Object.entries(PORT_COORDS).forEach(([name,ll])=>{
+    if(!agg.has(name)) agg.set(name,{count:0,worst:'unrun',lat:ll[0],lng:ll[1]});
+  });
+  let html='';
+  agg.forEach((m,name)=>{
+    const [fx,fy] = worldXY(m.lat,m.lng);
+    const x=(fx*100).toFixed(3), y=(fy*100).toFixed(3);
+    const cls = m.worst==='unrun' ? '' : ' worst-'+m.worst;
+    const sub = m.count ? (m.count+' voyage'+(m.count>1?'s':'')) : 'click to open';
+    html += `<button class="gp${cls}" data-port="${name}" title="${name} · ${fmtCoord([m.lat,m.lng])} · ${sub}" style="left:${x}%;top:${y}%">
+      <span class="dot"></span><span class="pname">${PORT_SHORT[name]||name}</span></button>`;
+  });
+  document.querySelectorAll('#globeSpin .tile-marks').forEach(m=>{
+    m.innerHTML = html;
+    m.querySelectorAll('.gp').forEach(b=>{ b.onclick = ()=>openPort(b.dataset.port); });
   });
 }
-window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') renderMapMarkers(); });
+window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') buildGlobe(); });
 
 /* ---------------- Fleet list & filters ---------------- */
 const FILTERS = [
@@ -1751,8 +1725,6 @@ async function boot(){
     wireSearch();
     wireClearCache();
     wireDemoRun();
-    drawMapBase();
-    renderMapMarkers();
     renderFilters();
     renderKPIs();
     renderStatusStrip();
@@ -1869,7 +1841,7 @@ function backToMap(){
   activeId=null;
   detail.style.display='none'; mapView.style.display='block';
   document.querySelectorAll('.voyage').forEach(el=>el.classList.remove('active'));
-  renderMapMarkers();
+  buildGlobe();
 }
 
 /* ---------------- Result ---------------- */
