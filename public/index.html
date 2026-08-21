@@ -877,12 +877,24 @@
       <div>
         <span class="eyebrow">Fleet command center</span>
         <h1>One fleet. Every dollar accounted for.</h1>
-        <p class="lead">The agent runs the whole book — parse, evidence, calculate, settle — and flags every voyage by result, with exposure rolled up live.</p>
+        <p class="lead">The agent runs the whole book — parse, evidence, calculate, settle — and flags every voyage by result, with exposure rolled up live. Switch roles to see the same book as receivable vs payable.</p>
       </div>
-      <button class="btn btn-primary" id="fleetRerun">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        Re-run fleet
-      </button>
+      <div class="demo-actions">
+        <div class="role-toggle" role="tablist" aria-label="Viewing role" title="Same fleet, two parties">
+          <button class="role-btn" data-role="owner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/><path d="M19.4 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.95 5.34 2.82 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/></svg>
+            Shipowner
+          </button>
+          <button class="role-btn" data-role="charterer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01"/></svg>
+            Charterer
+          </button>
+        </div>
+        <button class="btn btn-primary" id="fleetRerun">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          Re-run fleet
+        </button>
+      </div>
     </div>
 
     <div class="fleet-runline">
@@ -892,10 +904,10 @@
     </div>
 
     <section class="fleet-kpis">
-      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--red);background:var(--red-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag">Demurrage recovered</span></div><div class="k-value" id="fExposure" style="color:var(--red)">$0</div><div class="k-sub">auto-deducted to owners</div></div>
-      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--gold);background:var(--gold-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span class="k-tag">At risk (disputed)</span></div><div class="k-value" id="fAtRisk" style="color:var(--gold)">$0</div><div class="k-sub">held for review</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--red);background:var(--red-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag" id="fExposureTag">Demurrage receivable</span></div><div class="k-value" id="fExposure" style="color:var(--red)">$0</div><div class="k-sub" id="fExposureSub">auto-collected to owners</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--gold);background:var(--gold-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span class="k-tag" id="fAtRiskTag">At risk (disputed)</span></div><div class="k-value" id="fAtRisk" style="color:var(--gold)">$0</div><div class="k-sub" id="fAtRiskSub">your claims held for review</div></div>
       <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--accent);background:var(--accent-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/></svg></span><span class="k-tag">Voyages</span></div><div class="k-value" id="fCount">0</div><div class="k-sub">auto-audited</div></div>
-      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--teal);background:var(--teal-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span><span class="k-tag">Escrow locked</span></div><div class="k-value" id="fEscrow">$0</div><div class="k-sub">total deposits</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--teal);background:var(--teal-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span><span class="k-tag" id="fEscrowTag">Escrow locked</span></div><div class="k-value" id="fEscrow">$0</div><div class="k-sub" id="fEscrowSub">deposits held by escrow</div></div>
       <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--amber-deep);background:var(--amber-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="k-tag">Disputes</span></div><div class="k-value" id="fDisputes">0</div><div class="k-sub">blocked auto-settle</div></div>
     </section>
 
@@ -991,10 +1003,10 @@ function setRole(role){
   ROLE = role;
   document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role===role));
   renderKPIs();
-  if(activeId && !running && detail.style.display!=='none') select(activeId);
+  applyFleetRole();
+  if(document.body.getAttribute('data-view')==='demo' && activeId && !running && detail.style.display!=='none') select(activeId);
 }
-document.getElementById('roleOwner').onclick = ()=>setRole('owner');
-document.getElementById('roleCharterer').onclick = ()=>setRole('charterer');
+document.querySelectorAll('.role-btn').forEach(b=>{ b.onclick=()=>setRole(b.dataset.role); });
 
 /* ---------------- Theme ---------------- */
 (function initTheme(){
@@ -1399,6 +1411,37 @@ function renderFleetOverview(F){
     el.innerHTML = `<span class="tc-tag">${lbl}</span><span class="tc-vessel">${v.vessel}</span><span class="tc-port">${v.port} · ${v.imo}</span><span class="tc-amt">${amt}</span><span class="tc-open">Open audit ↗</span>`;
     el.onclick = ()=>drillIntoFleet(v.id);
     tr.appendChild(el);
+  });
+  applyFleetRole();
+}
+
+/* ---------------- Fleet role view ---------------- */
+function fleetRoleText(){
+  const owner = ROLE==='owner';
+  return {
+    exposureTag: owner ? 'Demurrage receivable' : 'Demurrage payable',
+    exposureSub: owner ? 'auto-collected to owners' : 'auto-deducted from charterers',
+    atRiskSub:   owner ? 'your claims held for review' : 'held — not yet charged',
+    escrowSub:   owner ? 'deposits held by escrow' : 'your deposits locked',
+  };
+}
+function fleetChipAmt(v){
+  const owner = ROLE==='owner';
+  if(v.status==='demurrage') return (owner?'+ ':'− ') + fmt(v.amount_usd);
+  if(v.status==='dispute') return v.at_risk_usd>0 ? ('Hold '+fmt(v.at_risk_usd)) : 'Hold';
+  return owner ? 'No claim' : 'No charge';
+}
+function applyFleetRole(){
+  const t = fleetRoleText();
+  const set = (id,val)=>{ const e=document.getElementById(id); if(e) e.textContent=val; };
+  set('fExposureTag', t.exposureTag);
+  set('fExposureSub', t.exposureSub);
+  set('fAtRiskSub', t.atRiskSub);
+  set('fEscrowSub', t.escrowSub);
+  const F = FLEET; if(!F) return;
+  document.querySelectorAll('#traffic .tchip').forEach(chip=>{
+    const v = F.voyages.find(x=>x.id===chip.dataset.id); if(!v) return;
+    const a = chip.querySelector('.tc-amt'); if(a) a.textContent = fleetChipAmt(v);
   });
 }
 
