@@ -1,281 +1,787 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AnchorClaim · Demurrage Audit & Settlement</title>
+<title>AnchorClaim · Demurrage Audit & On-chain Settlement</title>
+<meta name="description" content="AnchorClaim audits maritime demurrage claims and settles them on-chain. Parse the charter party, cross-check AIS, compute demurrage and settle through escrow.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#F4F7FA; --surface:#FFFFFF; --surface-2:#EEF3F8; --line:#DCE5EE;
-    --ink:#16222E; --muted:#5E7183; --faint:#8FA3B4;
-    --navy:#1B3B52; --amber:#D9822B; --amber-deep:#9A5A16; --amber-soft:#FBEBD7;
-    --teal:#128B6E; --teal-soft:#DBF1EA; --red:#C6413B; --red-soft:#F8E2E1;
-    --mono:'SF Mono',ui-monospace,'Roboto Mono',Menlo,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;
-    --shadow:0 1px 2px rgba(22,34,46,.06),0 4px 16px rgba(22,34,46,.05);
-    --shadow-lg:0 8px 30px rgba(22,34,46,.13);
+    color-scheme:light;
+    --bg:#F5F7FB; --bg-soft:#EEF2F8;
+    --surface:#FFFFFF; --surface-2:#F1F4F9; --surface-3:#F8FAFD;
+    --line:#E4EAF2; --line-strong:#CBD6E2;
+    --ink:#0A1622; --ink-2:#10283E; --muted:#576B80; --faint:#8B9CB1;
+    --brand:#0B2440;
+    --accent:#1D6FD1; --accent-strong:#0F55B8; --accent-soft:#E7F0FB;
+    --amber:#D4780C; --amber-deep:#9A5608; --amber-soft:#FBEFDC;
+    --teal:#0E8F74; --teal-soft:#DDF2EC;
+    --red:#C5382F; --red-soft:#FAE6E4;
+    --gold:#A4741B; --gold-soft:#F7EFDA;
+    --glow:rgba(29,111,209,.10);
+    --wave:rgba(29,111,209,.26);
+    --sea-1:#9FBFD9; --sea-2:#D3E2EF; --land:#E7EED8; --land-line:#C6D2BB;
+    --bathy:rgba(29,111,209,.16); --foam:rgba(255,255,255,.7); --ship:#1D6FD1;
+    --topbar-bg:rgba(255,255,255,.86);
+    --shadow-sm:0 1px 2px rgba(10,22,34,.05);
+    --shadow:0 1px 2px rgba(10,22,34,.05),0 10px 30px -12px rgba(10,22,34,.14);
+    --shadow-lg:0 24px 60px -20px rgba(10,22,34,.28);
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;
+    --display:'Plus Jakarta Sans',var(--sans);
+    --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:22px;
   }
+  [data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#070D15; --bg-soft:#0A1320;
+    --surface:#0C1523; --surface-2:#111D2E; --surface-3:#0E1A2B;
+    --line:#1D2C40; --line-strong:#2A3B52;
+    --ink:#E8EFF7; --ink-2:#FFFFFF; --muted:#9BAEC3; --faint:#6C8299;
+    --brand:#E9F1FA;
+    --accent:#5B9BF0; --accent-strong:#77ADF3; --accent-soft:#12263E;
+    --amber:#F0A04B; --amber-deep:#FFC68A; --amber-soft:#2E200D;
+    --teal:#3FC9A8; --teal-soft:#0F2F28;
+    --red:#EF776E; --red-soft:#361A18;
+    --gold:#E2B45E; --gold-soft:#2B220D;
+    --glow:rgba(91,155,240,.14);
+    --wave:rgba(91,155,240,.22);
+    --sea-1:#0B1A2B; --sea-2:#102741; --land:#172312; --land-line:#26381C;
+    --bathy:rgba(91,155,240,.16); --foam:rgba(255,255,255,.08); --ship:#7FB2EF;
+    --topbar-bg:rgba(12,21,35,.82);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px -14px rgba(0,0,0,.5);
+    --shadow-lg:0 26px 64px -22px rgba(0,0,0,.6);
+  }
+
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
-    -webkit-font-smoothing:antialiased;min-height:100vh}
-  .wrap{max-width:1120px;margin:0 auto;padding:30px 24px 70px}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;min-height:100vh;font-size:15px;
+    transition:background-color .35s ease,color .35s ease}
+  body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:radial-gradient(1100px 540px at 90% -12%, var(--glow), transparent 60%),
+      radial-gradient(900px 540px at -10% 112%, rgba(14,143,116,.08), transparent 60%)}
+  button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--accent);color:#fff}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .mono{font-family:var(--mono)}
+  .num{font-variant-numeric:tabular-nums}
+  .shell{max-width:1200px;margin:0 auto;padding:0 28px 72px}
 
-  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
-    padding-bottom:20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-  .brand{display:flex;align-items:baseline;gap:12px}
-  .brand h1{font-size:21px;font-weight:650;letter-spacing:.2px;color:var(--navy)}
-  .brand .anchor{color:var(--amber);font-size:22px;line-height:1;transform:translateY(2px)}
-  .tag{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.4px;
-    border:1px solid var(--line);border-radius:999px;padding:4px 11px;background:var(--surface)}
-  .sub{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  /* view switching */
+  #demo{display:none}
+  body[data-view="demo"] #demo{display:block}
+  body[data-view="demo"] #landing{display:none}
+  body[data-view="landing"] .only-demo{display:none !important}
+  body[data-view="demo"] .only-landing{display:none !important}
 
-  .layout{display:grid;grid-template-columns:300px 1fr;gap:24px;margin-top:24px}
-  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+  /* ================= App bar ================= */
+  .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:16px;height:64px;
+    margin:0 -28px;padding:0 28px;background:var(--topbar-bg);
+    backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .brand .mark{width:38px;height:38px;flex:0 0 auto;display:grid;place-items:center;color:#fff;border-radius:10px;
+    background:linear-gradient(135deg,#0A2140 0%,#123F6B 55%,#1D6FD1 130%);box-shadow:0 4px 12px -2px rgba(10,33,64,.5)}
+  .brand .mark svg{width:20px;height:20px}
+  .brand .name{font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:.1px;color:var(--ink);line-height:1}
+  .brand .name span{color:var(--accent)}
+  .brand .descr{font:500 12px var(--mono);color:var(--faint);margin-top:3px;letter-spacing:.3px}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .clock{display:flex;align-items:baseline;gap:6px;font:500 12px var(--mono);color:var(--muted);
+    border:1px solid var(--line);border-radius:9px;padding:6px 11px;background:var(--surface)}
+  .clock b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+  .net-status{display:flex;align-items:center;gap:7px;font:600 12px var(--sans);color:var(--muted);
+    border:1px solid var(--line);border-radius:9px;padding:6px 12px;background:var(--surface)}
+  .net-status .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--faint);position:relative;flex:0 0 auto}
+  .net-status.ok .pulse-dot{background:var(--teal)}
+  .net-status.ok .pulse-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:1.5px solid var(--teal);opacity:.55;animation:ping 1.9s ease-out infinite}
+  .net-status.err .pulse-dot{background:var(--red)}
+  @keyframes ping{0%{transform:scale(.6);opacity:.8}70%{transform:scale(1.8);opacity:0}100%{opacity:0}}
 
-  .rail h2{font-size:11px;text-transform:uppercase;letter-spacing:1.6px;color:var(--faint);
-    font-weight:650;margin:0}
+  .icon-btn{width:40px;height:40px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--muted);transition:all .18s}
+  .icon-btn:hover{color:var(--accent);border-color:var(--line-strong);box-shadow:var(--shadow-sm)}
+  .icon-btn:active{transform:scale(.94)}
+  .icon-btn svg{width:19px;height:19px;display:block}
+  [data-theme="light"] .icon-moon{display:none}
+  [data-theme="dark"] .icon-sun{display:none}
+  .icon-btn svg{animation:spin-in .4s ease}
+  @keyframes spin-in{from{transform:rotate(-140deg) scale(.5);opacity:0}to{transform:rotate(0) scale(1);opacity:1}}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font:600 13.5px var(--sans);border-radius:11px;
+    padding:11px 18px;transition:all .16s;border:1px solid transparent;white-space:nowrap}
+  .btn svg{width:16px;height:16px}
+  .btn-sm{padding:8px 14px;font-size:12.5px;border-radius:9px}
+  .btn-primary{background:linear-gradient(135deg,var(--accent-strong),var(--accent));color:#fff;box-shadow:0 8px 20px -8px rgba(29,111,209,.6)}
+  .btn-primary:hover{filter:brightness(1.06);transform:translateY(-1px)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-ghost{border-color:var(--line-strong);color:var(--ink);background:var(--surface);box-shadow:var(--shadow-sm)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ================= Landing ================= */
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font:600 11.5px var(--sans);letter-spacing:1.8px;text-transform:uppercase;color:var(--accent)}
+  .eyebrow::before{content:'';width:22px;height:1px;background:var(--accent);opacity:.5}
+  .grad-text{background:linear-gradient(95deg,var(--accent),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  .land-hero{position:relative;padding:76px 0 40px}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:52px;align-items:center}
+  @media(max-width:900px){.hero-grid{grid-template-columns:1fr}}
+  .hero-copy h1{font-family:var(--display);font-size:clamp(30px,4.4vw,52px);font-weight:800;letter-spacing:-1.2px;color:var(--ink);line-height:1.05;margin:16px 0 0}
+  .hero-copy .lead{color:var(--muted);max-width:520px;margin-top:18px;font-size:16.5px;line-height:1.65}
+  .hero-cta{display:flex;align-items:center;gap:12px;margin-top:28px;flex-wrap:wrap}
+  .hero-note{display:flex;align-items:center;gap:8px;margin-top:20px;font:500 12.5px var(--mono);color:var(--faint)}
+  .hero-note i{width:7px;height:7px;border-radius:50%;background:var(--teal)}
+
+  .hero-visual{position:relative;min-height:360px;display:grid;place-items:center}
+  .ticket{width:min(370px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow-lg);padding:20px;animation:floaty 6s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  .ticket-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .ticket-tag{font:600 10.5px var(--mono);letter-spacing:1.2px;text-transform:uppercase;color:var(--accent)}
+  .ticket-live{display:flex;align-items:center;gap:6px;font:600 10.5px var(--mono);color:var(--teal)}
+  .ticket-live i{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:blinker 1.4s ease infinite}
+  @keyframes blinker{50%{opacity:.25}}
+  .ticket-vessel{display:flex;align-items:baseline;gap:8px}
+  .ticket-vessel b{font-family:var(--display);font-size:19px;font-weight:800;color:var(--ink)}
+  .ticket-route{font:500 12px var(--mono);color:var(--muted)}
+  .ticket-amount{font-family:var(--display);font-size:40px;font-weight:800;letter-spacing:-.6px;color:var(--amber);font-variant-numeric:tabular-nums;margin-top:6px}
+  .ticket-amount small{font-size:16px;font-weight:700;color:var(--faint);letter-spacing:0}
+  .ticket-bar{position:relative;height:8px;border-radius:99px;background:var(--surface-2);margin:16px 0 6px;overflow:hidden}
+  .ticket-bar span{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--teal),var(--accent));animation:fill 2.4s ease forwards}
+  @keyframes fill{to{width:100%}}
+  .ticket-meta{display:flex;justify-content:space-between;font:500 11px var(--mono);color:var(--faint)}
+  .ticket-row{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font:500 11.5px var(--mono);color:var(--muted);flex-wrap:wrap}
+  .ticket-row code{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--accent)}
+  .float-chip{position:absolute;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);
+    border-radius:12px;padding:9px 13px;font:600 12px var(--sans);color:var(--ink);box-shadow:var(--shadow);animation:floaty 5s ease-in-out infinite}
+  .float-chip svg{width:15px;height:15px;color:var(--teal)}
+  .fc1{top:4%;right:4%;animation-delay:.6s}
+  .fc2{bottom:6%;left:2%;animation-delay:1.2s}
+  @media(max-width:900px){.float-chip{display:none}}
+
+  .stat-band{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:8px 0 24px}
+  @media(max-width:820px){.stat-band{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.stat-band{grid-template-columns:1fr}}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow-sm)}
+  .stat-num{font-family:var(--display);font-size:34px;font-weight:800;letter-spacing:-.6px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+  .stat-num em{font-style:normal}
+  .stat-label{font:500 13px var(--sans);color:var(--muted);margin-top:8px}
+
+  .section{padding:44px 0}
+  .sec-head{max-width:640px;margin-bottom:32px}
+  .sec-head h2{font-family:var(--display);font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-.7px;color:var(--ink);margin-top:12px}
+  .sec-head p{color:var(--muted);margin-top:12px;font-size:15.5px;line-height:1.65}
+
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:880px){.features{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.features{grid-template-columns:1fr}}
+  .feat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow-sm);
+    transition:transform .18s,box-shadow .18s,border-color .18s}
+  .feat:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:var(--line-strong)}
+  .feat-icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:var(--accent);background:var(--accent-soft);margin-bottom:16px}
+  .feat-icon svg{width:20px;height:20px}
+  .feat:nth-child(2) .feat-icon{color:var(--teal);background:var(--teal-soft)}
+  .feat:nth-child(3) .feat-icon{color:var(--amber-deep);background:var(--amber-soft)}
+  .feat:nth-child(4) .feat-icon{color:var(--red);background:var(--red-soft)}
+  .feat:nth-child(5) .feat-icon{color:var(--gold);background:var(--gold-soft)}
+  .feat h3{font-family:var(--display);font-size:16.5px;font-weight:700;color:var(--ink)}
+  .feat p{font-size:13.5px;color:var(--muted);margin-top:8px;line-height:1.6}
+
+  .pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  @media(max-width:880px){.pipeline{grid-template-columns:1fr}}
+  .pipe-step{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 18px;box-shadow:var(--shadow-sm)}
+  .pipe-num{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);letter-spacing:1px}
+  .pipe-step h4{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink);margin-top:10px}
+  .pipe-step p{font-size:12.8px;color:var(--muted);margin-top:7px;line-height:1.55}
+  .pipe-step::before{content:'';position:absolute;top:24px;right:-7px;width:14px;height:2px;background:var(--line)}
+  .pipe-step:last-child::before{display:none}
+  @media(max-width:880px){.pipe-step::before{display:none}}
+
+  .benefits{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:stretch}
+  @media(max-width:880px){.benefits{grid-template-columns:1fr}}
+  .benefit-list{display:flex;flex-direction:column;gap:12px}
+  .benefit{display:flex;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow-sm)}
+  .benefit-icon{width:36px;height:36px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;color:var(--teal);background:var(--teal-soft)}
+  .benefit-icon svg{width:17px;height:17px}
+  .benefit h4{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink)}
+  .benefit p{font-size:13.5px;color:var(--muted);margin-top:4px;line-height:1.6}
+  .sec-card{background:linear-gradient(150deg,var(--accent-soft),var(--surface));border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:24px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--shadow-sm)}
+  .sec-card .k{font:600 11px var(--mono);letter-spacing:1.4px;text-transform:uppercase;color:var(--faint)}
+  .hash{font:500 12.5px var(--mono);color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;margin:14px 0;word-break:break-all}
+  .sec-card p{font-size:13.5px;color:var(--muted);line-height:1.65}
+
+  .cta-band{position:relative;overflow:hidden;margin-top:20px;border-radius:var(--r-xl);padding:52px 44px;text-align:center;
+    background:linear-gradient(135deg,var(--brand) 0%,#123F6B 55%,#1D6FD1 130%);box-shadow:var(--shadow-lg)}
+  [data-theme="dark"] .cta-band{background:linear-gradient(135deg,#0A2140,#0F2F56 60%,#123F6B)}
+  .cta-band::before{content:'';position:absolute;inset:0;opacity:.25;pointer-events:none;background:radial-gradient(600px 240px at 75% 0%, rgba(255,255,255,.25), transparent 60%)}
+  .cta-band h2{font-family:var(--display);font-size:clamp(24px,3.4vw,36px);font-weight:800;color:#fff;letter-spacing:-.6px}
+  .cta-band p{color:rgba(255,255,255,.8);margin:12px auto 26px;max-width:520px;font-size:15.5px}
+  .cta-band .btn-primary{background:#fff;color:#0B2440;box-shadow:0 12px 30px -10px rgba(0,0,0,.4)}
+
+  .land-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:44px;padding-top:22px;
+    border-top:1px solid var(--line);font:500 12.5px var(--mono);color:var(--faint);flex-wrap:wrap}
+  .land-foot .fl{display:flex;align-items:center;gap:8px}
+  .land-foot svg{width:14px;height:14px;color:var(--accent)}
+  .land-foot .links{display:flex;gap:12px}
+  .land-foot .links a:hover{color:var(--accent)}
+
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ================= Demo ================= */
+  .demo-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:32px 0 22px;flex-wrap:wrap}
+  .demo-head .lead{color:var(--muted);max-width:600px;margin-top:8px;font-size:14.5px}
+  .demo-head h1{font-family:var(--display);font-size:clamp(22px,2.8vw,30px);font-weight:800;letter-spacing:-.5px;color:var(--ink);margin-top:8px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.kpis{grid-template-columns:1fr}}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 17px;box-shadow:var(--shadow);
+    position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .18s}
+  .kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .kpi .k-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .kpi .k-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--accent);background:var(--accent-soft)}
+  .kpi .k-icon svg{width:17px;height:17px}
+  .kpi:nth-child(2) .k-icon{color:var(--teal);background:var(--teal-soft)}
+  .kpi:nth-child(3) .k-icon{color:var(--amber-deep);background:var(--amber-soft)}
+  .kpi:nth-child(4) .k-icon{color:var(--red);background:var(--red-soft)}
+  .kpi .k-tag{font:600 10px var(--mono);letter-spacing:.5px;color:var(--faint);text-transform:uppercase}
+  .kpi .k-value{font-family:var(--display);font-size:25px;font-weight:800;color:var(--ink);margin-top:11px;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+  .kpi .k-sub{font:500 12px var(--sans);color:var(--faint);margin-top:3px}
+
+  .status-strip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 17px;box-shadow:var(--shadow);margin-bottom:20px}
+  .ss-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+  .ss-title{font:600 12.5px var(--sans);color:var(--muted)}
+  .ss-count{font:600 11.5px var(--mono);color:var(--faint)}
+  .ss-bar{display:flex;height:9px;border-radius:99px;overflow:hidden;background:var(--surface-2);gap:2px}
+  .ss-seg{height:100%;border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1);min-width:2px}
+  .ss-legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:11px}
+  .ss-item{display:flex;align-items:center;gap:7px;font:500 11.5px var(--sans);color:var(--muted)}
+  .ss-item i{width:9px;height:9px;border-radius:3px;display:inline-block;flex:0 0 auto}
+  .ss-item b{font:600 11.5px var(--mono);color:var(--ink)}
+
+  .layout{display:grid;grid-template-columns:336px 1fr;gap:18px}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+  .stage{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);padding:26px;min-height:600px;box-shadow:var(--shadow);position:relative}
+
+  /* Fleet rail */
+  .rail{display:flex;flex-direction:column;min-width:0}
   .rail-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .clear-cache{font:500 11px var(--sans);color:var(--muted);background:none;border:1px solid var(--line);
-    border-radius:7px;padding:4px 9px;cursor:pointer;transition:all .15s}
-  .clear-cache:hover{border-color:var(--amber);color:var(--amber)}
-  .clear-cache:active{transform:translateY(1px)}
-  .search-wrap{position:relative;margin-bottom:14px}
-  .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint);
-    font-size:16px;pointer-events:none}
-  .search{width:100%;box-sizing:border-box;padding:10px 12px 10px 32px;border:1px solid var(--line);
-    border-radius:10px;background:var(--surface);color:var(--ink);font:14px var(--sans);
-    box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s}
-  .search:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
+  .rail-head h2{font:700 12px var(--sans);letter-spacing:1.5px;text-transform:uppercase;color:var(--faint)}
+  .clear-cache{font:600 11.5px var(--sans);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 11px;transition:all .15s}
+  .clear-cache:hover{border-color:var(--red);color:var(--red)}
+  .search-wrap{position:relative;margin-bottom:12px}
+  .search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--faint)}
+  .search{width:100%;padding:11px 38px 11px 36px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);
+    font:14px var(--sans);box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s}
+  .search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .search::placeholder{color:var(--faint)}
-  .no-results{font-size:13px;color:var(--faint);font-family:var(--mono);padding:16px 4px;text-align:center}
-  .fleet{display:flex;flex-direction:column;gap:12px}
-  /* uniform size: every card is the same fixed height + padding */
-  .voyage{min-height:104px;background:var(--surface);border:1px solid var(--line);border-radius:14px;
-    padding:16px;cursor:pointer;text-align:left;color:inherit;font:inherit;
-    box-shadow:var(--shadow);display:flex;flex-direction:column;justify-content:space-between;
-    transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s,border-color .18s;
-    transform-origin:center}
-  .voyage:hover{transform:scale(1.03);box-shadow:var(--shadow-lg);border-color:#C4D3E0}
-  .voyage:active{transform:scale(1.05)}
-  .voyage.active{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-soft),var(--shadow-lg);transform:scale(1.04)}
-  .voyage:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-  .voyage .vn{font-weight:640;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .voyage .vm{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:2px}
-  .voyage .vs{align-self:flex-start;font-family:var(--mono);font-size:11px;
-    padding:3px 9px;border-radius:999px;font-weight:600}
-  .s-demurrage{background:var(--amber-soft);color:var(--amber)}
-  .s-none{background:var(--teal-soft);color:var(--teal)}
-  .s-dispute{background:var(--red-soft);color:var(--red)}
-  .s-loading{background:var(--surface-2);color:var(--faint)}
-  .voyage .cached-dot{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);
-    font-size:10px;color:var(--teal);margin-top:4px}
+  .kbd-hint{position:absolute;right:11px;top:50%;transform:translateY(-50%);font:600 10px var(--mono);color:var(--faint);border:1px solid var(--line);border-radius:5px;padding:1px 5px;background:var(--surface-2)}
+
+  .filters{display:flex;width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:14px}
+  .chip{flex:1;font:600 11.5px var(--sans);color:var(--muted);border-radius:8px;padding:7px 4px;white-space:nowrap;transition:all .15s;line-height:1}
+  .chip:hover{color:var(--ink)}
+  .chip.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .chip .n{font-family:var(--mono);font-size:10px;opacity:.55;margin-left:3px}
+
+  .fleet{display:flex;flex-direction:column;gap:10px}
+  .voyage{min-height:100px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;cursor:pointer;
+    text-align:left;color:inherit;font:inherit;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:space-between;
+    position:relative;overflow:hidden;transition:transform .16s,box-shadow .16s,border-color .16s}
+  .voyage::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:transparent;transition:background .16s}
+  .voyage:hover{transform:translateY(-1px);box-shadow:var(--shadow);border-color:var(--line-strong)}
+  .voyage.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
+  .voyage.active::before{background:var(--accent)}
+  .voyage .v-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .voyage .vn{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  .voyage .vm{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:4px}
+  .voyage .vm b{color:var(--muted);font-weight:500}
+  .voyage .vs{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:999px;font-weight:600;white-space:nowrap}
+  .voyage .v-foot{display:flex;align-items:center;justify-content:space-between;margin-top:11px}
+  .voyage .v-dep{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .voyage .cached-dot{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;color:var(--teal)}
   .voyage .cached-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block}
   .voyage.hidden{display:none}
-  .hint{font-size:12px;color:var(--faint);line-height:1.6;margin-top:14px}
+  .no-results{font-size:13px;color:var(--faint);font-family:var(--mono);padding:22px 4px;text-align:center}
+  .hint{font-size:12px;color:var(--faint);line-height:1.6;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
 
-  .stage{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px;
-    min-height:540px;box-shadow:var(--shadow)}
+  .s-demurrage{background:var(--amber-soft);color:var(--amber-deep)}
+  .s-none{background:var(--teal-soft);color:var(--teal)}
+  .s-dispute{background:var(--red-soft);color:var(--red)}
+  .s-review{background:var(--gold-soft);color:var(--gold)}
+  .s-loading{background:var(--surface-2);color:var(--faint)}
 
-  /* map view */
-  .map-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
-  .map-title{font-size:19px;font-weight:650;color:var(--navy);font-family:var(--serif,Georgia,serif)}
-  .map-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
-  .map{position:relative;width:100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;
-    background:linear-gradient(180deg,#EAF2FB 0%,#DCEAF6 100%)}
+  /* Map */
+  .map-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+  .map-title{font-family:var(--display);font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.2px}
+  .map-sub{font-size:13px;color:var(--muted);margin-top:4px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font:500 11px var(--sans);color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .map{position:relative;width:100%;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:linear-gradient(180deg,var(--sea-1),var(--sea-2));box-shadow:var(--shadow-sm)}
   .map svg{display:block;width:100%;height:auto}
+  .grid-line{stroke:var(--line);stroke-width:1;opacity:.4}
+  .bathy{fill:none;stroke:var(--bathy);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:2 6}
+  .route{fill:none;stroke:var(--bathy);stroke-width:1.8;stroke-dasharray:5 9;stroke-linecap:round;opacity:.9}
+  .coastfoam{fill:none;stroke:var(--foam);stroke-width:5;stroke-linecap:round;opacity:.6}
+  .port-label{font:700 11px var(--sans);fill:var(--muted);letter-spacing:.3px;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+  .coord{font:500 9.5px var(--mono);fill:var(--faint);paint-order:stroke;stroke:var(--surface);stroke-width:3.5px;opacity:.7}
+  .compass{color:var(--muted)}
+  .port-pulse{transform-box:fill-box;transform-origin:center;animation:ringdot 2.8s ease-out infinite}
+  @keyframes ringdot{0%{transform:scale(.5);opacity:.9}70%{transform:scale(2.2);opacity:0}100%{opacity:0}}
+
   .map-markers{position:absolute;inset:0}
-  .mk{position:absolute;transform:translate(-50%,-100%);cursor:pointer;text-align:center;
-    transition:transform .15s}
-  .mk:hover{transform:translate(-50%,-100%) scale(1.08)}
+  .mk{position:absolute;transform:translate(-50%,-100%);cursor:pointer;text-align:center;background:none;border:none;padding:0;transition:transform .15s}
+  .mk:hover{transform:translate(-50%,-100%) scale(1.07)}
   .mk.hidden{display:none}
-  .mk .pin{font-size:26px;line-height:1;filter:drop-shadow(0 2px 3px rgba(20,40,60,.3))}
-  .mk .lbl{margin-top:-2px;display:inline-block;background:var(--surface);border:1px solid var(--line);
-    border-radius:8px;padding:3px 8px;font:600 11px var(--sans);color:var(--ink);white-space:nowrap;
-    box-shadow:var(--shadow)}
+  .mk .ship{width:36px;height:36px;margin:0 auto;display:grid;place-items:center;border-radius:50%;background:var(--surface);
+    border:1.5px solid var(--line-strong);box-shadow:var(--shadow);color:var(--faint);animation:bob 3.4s ease-in-out infinite;transition:border-color .2s,color .2s}
+  .mk:hover .ship{border-color:var(--accent);color:var(--accent)}
+  .mk[data-vd="demurrage"] .ship{border-color:var(--amber);color:var(--amber)}
+  .mk[data-vd="none"] .ship{border-color:var(--teal);color:var(--teal)}
+  .mk[data-vd="dispute"] .ship{border-color:var(--red);color:var(--red)}
+  .mk[data-vd="review"] .ship{border-color:var(--gold);color:var(--gold)}
+  .mk .ship svg{width:17px;height:17px}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .mk .lbl{margin-top:6px;display:inline-block;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 9px;
+    font:600 11px var(--sans);color:var(--ink);white-space:nowrap;box-shadow:var(--shadow-sm)}
   .mk .vdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
-  .mk .vd-demurrage{background:var(--amber)} .mk .vd-none{background:var(--teal)}
-  .mk .vd-dispute{background:var(--red)} .mk .vd-review{background:#B37E1C}
-  .mk .vd-unrun{background:var(--faint)}
-  .port-label{font:600 11px var(--sans);fill:#5E7183}
-  .back-map{background:none;border:1px solid var(--line);border-radius:9px;padding:8px 14px;
-    font:600 13px var(--sans);color:var(--muted);cursor:pointer;transition:all .15s;margin-bottom:16px}
-  .back-map:hover{border-color:var(--amber);color:var(--amber)}
-  .voyage-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
-  .voyage-head .vt{font-size:20px;font-weight:650;color:var(--navy)}
-  .voyage-head .vmeta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px}
-  .contract{display:flex;gap:22px;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);
-    font-size:12px;color:var(--muted)}
-  .contract b{color:var(--ink);font-weight:640}
+  .vd-demurrage{background:var(--amber)} .vd-none{background:var(--teal)}
+  .vd-dispute{background:var(--red)} .vd-review{background:var(--gold)} .vd-unrun{background:var(--faint)}
 
-  .run{margin-left:auto;background:var(--amber);color:#fff;border:none;border-radius:10px;
-    padding:12px 20px;font:640 14px var(--sans);cursor:pointer;box-shadow:var(--shadow);
-    transition:filter .15s,transform .1s}
-  .run:hover{filter:brightness(1.05)}
+  /* Detail */
+  .back-map{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:9px;padding:8px 14px;font:600 13px var(--sans);color:var(--muted);transition:all .15s;margin-bottom:20px}
+  .back-map:hover{border-color:var(--brand);color:var(--ink)}
+  .back-map svg{width:15px;height:15px}
+  .voyage-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+  .voyage-head .vt{font-family:var(--display);font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.3px}
+  .voyage-head .vmeta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px}
+  .contract{display:flex;gap:24px;flex-wrap:wrap;margin-top:15px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .contract span{display:flex;align-items:baseline;gap:6px}
+  .contract b{color:var(--ink);font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+  .run{margin-left:auto;background:linear-gradient(135deg,var(--accent-strong),var(--accent));color:#fff;border-radius:12px;padding:13px 22px;
+    font:700 14px var(--sans);cursor:pointer;box-shadow:0 8px 20px -8px rgba(29,111,209,.55);transition:filter .15s,transform .1s;display:inline-flex;align-items:center;gap:8px}
+  .run:hover{filter:brightness(1.06)}
   .run:active{transform:translateY(1px)}
-  .run:disabled{opacity:.5;cursor:default}
+  .run:disabled{opacity:.62;cursor:default;filter:none}
+  .run svg{width:16px;height:16px}
+  .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
 
-  .steps{margin-top:26px;display:flex;flex-direction:column}
-  .step{display:grid;grid-template-columns:28px 1fr;gap:15px;padding:15px 0;
-    border-top:1px solid var(--line);opacity:.4;transition:opacity .3s}
-  .step:first-child{border-top:none}
-  .step.on{opacity:1}
-  .dot{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);
-    display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--faint);
-    background:var(--surface);transition:all .3s}
-  .step.on .dot{border-color:var(--amber);color:var(--amber)}
-  .step.done .dot{border-color:var(--teal);background:var(--teal);color:#fff}
-  .step.fail .dot{border-color:var(--red);background:var(--red);color:#fff}
-  .step .title{font-weight:640;font-size:14px}
-  .step .body{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:6px;
-    white-space:pre-wrap;line-height:1.7}
-
-  .laytime{margin-top:28px}
-  .bar{position:relative;height:40px;border-radius:9px;overflow:hidden;background:var(--surface-2);
-    border:1px solid var(--line)}
-  .seg{position:absolute;top:0;bottom:0;display:grid;place-items:center;
-    font-family:var(--mono);font-size:11px;font-weight:600;transition:width .8s ease;color:var(--ink);
-    overflow:hidden;white-space:nowrap;padding:0 2px}
-  .seg-counted{left:0;background:var(--teal-soft)}
-  .seg-excluded{background:repeating-linear-gradient(45deg,#D3DEE8,#D3DEE8 6px,transparent 6px,transparent 12px);color:var(--muted)}
-  .seg-over{background:var(--amber-soft);color:var(--amber-deep)}
-  .threshold{position:absolute;top:-7px;bottom:-7px;width:2px;background:var(--navy);z-index:3}
-  .threshold::after{content:'Free laytime';position:absolute;top:-18px;
-    font-family:var(--mono);font-size:10px;color:var(--navy);white-space:nowrap}
-  .threshold.near-right::after{right:4px}
-  .threshold:not(.near-right)::after{left:50%;transform:translateX(-50%)}
-  .barkey{display:flex;gap:18px;margin-top:26px;font-family:var(--mono);font-size:11px;
-    color:var(--muted);flex-wrap:wrap}
-  .barkey span{display:flex;align-items:center;gap:6px}
-  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
-
-  .verdict{margin-top:26px;border-radius:14px;padding:20px;border:1px solid var(--line);
-    background:var(--surface-2)}
-  .verdict.demurrage{border-color:#EBC79B;background:var(--amber-soft)}
-  .verdict.none{border-color:#A8D9CB;background:var(--teal-soft)}
-  .verdict.dispute{border-color:#E7B0AD;background:var(--red-soft)}
-  .verdict .vhead{display:flex;align-items:center;gap:10px;font-weight:650;font-size:16px}
-  .verdict .amt{font-family:var(--mono);font-size:32px;font-weight:680;margin:8px 0 4px}
-  .amt.demurrage{color:var(--amber)} .amt.none{color:var(--teal)} .amt.dispute{color:var(--red)}
-  .verdict .expl{font-family:var(--mono);font-size:12.5px;color:var(--ink);line-height:1.75;opacity:.85}
-  .txrow{display:flex;align-items:center;gap:8px;margin-top:14px;font-family:var(--mono);
-    font-size:12px;color:var(--muted);flex-wrap:wrap}
-  .txrow code{background:var(--surface);border:1px solid var(--line);border-radius:6px;
-    padding:3px 8px;color:var(--teal)}
-  .cache-note{margin-top:14px;font-family:var(--mono);font-size:11.5px;color:var(--teal);
-    display:flex;align-items:center;gap:6px}
-  .cache-note::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--teal)}
-
-  /* editable charter party panel */
-  .cp-wrap{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
-  .cp-toggle{width:100%;text-align:left;background:var(--surface-2);border:none;padding:11px 16px;
-    font:600 13px var(--sans);color:var(--navy);cursor:pointer}
-  .cp-toggle:hover{color:var(--amber)}
-  .cp-body{padding:14px 16px}
-  .cp-text{width:100%;box-sizing:border-box;min-height:150px;resize:vertical;padding:12px;
-    border:1px solid var(--line);border-radius:8px;background:#FBFDFF;color:var(--ink);
-    font:12.5px var(--mono);line-height:1.6}
-  .cp-text:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
-  .cp-actions{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
-  .cp-run{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px 16px;
-    font:600 13px var(--sans);cursor:pointer}
-  .cp-run:hover{filter:brightness(1.12)}
-  .cp-run:disabled{opacity:.5;cursor:default}
-  .cp-reset{background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;
-    font:500 13px var(--sans);color:var(--muted);cursor:pointer}
+  .cp-wrap{margin-top:18px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface-3);overflow:hidden}
+  .cp-toggle{width:100%;text-align:left;padding:12px 16px;font:600 13px var(--sans);color:var(--ink);transition:color .15s}
+  .cp-toggle:hover{color:var(--accent)}
+  .cp-body{padding:0 16px 16px}
+  .cp-text{width:100%;box-sizing:border-box;min-height:160px;resize:vertical;padding:13px;border:1px solid var(--line);border-radius:10px;
+    background:var(--surface);color:var(--ink);font:12.5px var(--mono);line-height:1.65;transition:border-color .15s,box-shadow .15s}
+  .cp-text:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .cp-actions{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .cp-run{background:var(--accent);color:#fff;border-radius:9px;padding:9px 17px;font:600 13px var(--sans);transition:filter .15s}
+  .cp-run:hover{filter:brightness(1.08)}
+  .cp-run:disabled{opacity:.55;cursor:default}
+  .cp-reset{border:1px solid var(--line);border-radius:9px;padding:8px 15px;font:500 13px var(--sans);color:var(--muted);transition:all .15s}
+  .cp-reset:hover{border-color:var(--line-strong);color:var(--ink)}
   .cp-hint{font-size:12px;color:var(--faint);font-style:italic}
 
-  /* needs-review verdict */
-  .verdict.review{border-color:#D9A94B;background:#FBF3E0}
-  .amt.review{color:#B37E1C}
-  .review-list{margin:8px 0 0 18px;padding:0}
-  .review-list li{margin:3px 0}
-  .s-review{background:#FBF3E0;color:#B37E1C}
+  /* Steps */
+  .steps{margin-top:26px;display:flex;flex-direction:column}
+  .step{display:grid;grid-template-columns:34px 1fr;gap:16px;padding:0 0 26px;opacity:.42;transition:opacity .3s}
+  .step:last-child{padding-bottom:0}
+  .step.on{opacity:1}
+  .step-marker{position:relative;display:flex;justify-content:center}
+  .step-marker::before{content:'';position:absolute;top:30px;bottom:-8px;width:2px;left:50%;transform:translateX(-50%);background:var(--line)}
+  .step:last-child .step-marker::before{display:none}
+  .step.done .step-marker::before{background:linear-gradient(var(--teal),var(--line))}
+  .dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--line-strong);display:grid;place-items:center;font-family:var(--mono);
+    font-size:11.5px;font-weight:600;color:var(--faint);background:var(--surface);position:relative;z-index:1;transition:all .3s}
+  .step.on .dot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .step.on .dot::after{content:'';position:absolute;inset:-8px;border-radius:50%;border:1.5px solid var(--accent);animation:ringdot 1.9s ease-out infinite}
+  .step.done .dot{border-color:var(--teal);background:var(--teal);color:#fff}
+  .step.fail .dot{border-color:var(--red);background:var(--red);color:#fff}
+  .step .title{font-weight:700;font-size:14px;color:var(--ink)}
+  .step .body{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:8px;white-space:pre-wrap;line-height:1.7;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .step .body:empty{display:none}
 
-  /* calculation breakdown */
-  .breakdown{margin-top:14px}
-  .breakdown summary{cursor:pointer;font:600 12.5px var(--sans);color:var(--navy);
-    list-style:none;user-select:none;padding:6px 0}
+  /* Laytime */
+  .laytime{margin-top:28px}
+  .laytime h3{font:700 12px var(--sans);letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .bar{position:relative;height:46px;border-radius:12px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+  .seg{position:absolute;top:0;bottom:0;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:600;transition:width .9s cubic-bezier(.2,.8,.2,1);color:var(--ink);overflow:hidden;white-space:nowrap;padding:0 4px}
+  .seg-counted{left:0;background:var(--teal-soft);color:var(--teal)}
+  .seg-excluded{background:repeating-linear-gradient(45deg,var(--line-strong),var(--line-strong) 6px,transparent 6px,transparent 12px);color:var(--muted)}
+  .seg-over{background:var(--amber-soft);color:var(--amber-deep)}
+  .threshold{position:absolute;top:-8px;bottom:-8px;width:2px;background:var(--ink);z-index:3}
+  .threshold::after{content:'Free laytime';position:absolute;top:-21px;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink);white-space:nowrap}
+  .threshold.near-right::after{right:4px}
+  .threshold:not(.near-right)::after{left:50%;transform:translateX(-50%)}
+  .barkey{display:flex;gap:20px;margin-top:16px;font:500 11px var(--mono);color:var(--muted);flex-wrap:wrap}
+  .barkey span{display:flex;align-items:center;gap:7px}
+  .sw{width:13px;height:13px;border-radius:4px;display:inline-block;flex:0 0 auto}
+
+  /* Verdict */
+  .verdict{margin-top:26px;border-radius:var(--r-lg);padding:22px;border:1px solid var(--line);background:var(--surface-2);animation:rise .45s cubic-bezier(.2,.8,.2,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .verdict.demurrage{border-color:var(--amber);background:linear-gradient(160deg,var(--amber-soft),var(--surface) 70%)}
+  .verdict.none{border-color:var(--teal);background:linear-gradient(160deg,var(--teal-soft),var(--surface) 70%)}
+  .verdict.dispute{border-color:var(--red);background:linear-gradient(160deg,var(--red-soft),var(--surface) 70%)}
+  .verdict.review{border-color:var(--gold);background:linear-gradient(160deg,var(--gold-soft),var(--surface) 70%)}
+  .verdict .vhead{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15.5px;color:var(--ink)}
+  .verdict .amt{font-family:var(--display);font-size:40px;font-weight:800;margin:12px 0 6px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .amt.demurrage{color:var(--amber)} .amt.none{color:var(--teal)} .amt.dispute{color:var(--red)} .amt.review{color:var(--gold)}
+  .verdict .expl{font-family:var(--mono);font-size:12.5px;color:var(--ink);line-height:1.75;opacity:.9}
+  .review-list{margin:8px 0 0 18px;padding:0}
+  .review-list li{margin:4px 0}
+  .txrow{display:flex;align-items:center;gap:8px;margin-top:16px;font:500 12px var(--mono);color:var(--muted);flex-wrap:wrap}
+  .txrow code{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:3px 9px;color:var(--accent)}
+  .cache-note{margin-top:16px;font:500 11.5px var(--mono);color:var(--teal);display:flex;align-items:center;gap:7px}
+  .cache-note::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--teal)}
+
+  /* Breakdown */
+  .breakdown{margin-top:16px;border:1px solid var(--line);border-radius:11px;background:var(--surface);overflow:hidden}
+  .breakdown summary{cursor:pointer;font:600 12.5px var(--sans);color:var(--ink);list-style:none;user-select:none;padding:12px 15px;transition:background .15s;display:flex;align-items:center;gap:8px}
+  .breakdown summary:hover{background:var(--surface-2)}
   .breakdown summary::-webkit-details-marker{display:none}
-  .breakdown summary::before{content:'▸ ';color:var(--amber)}
-  .breakdown[open] summary::before{content:'▾ '}
-  .bd{margin-top:8px;border-top:1px solid var(--line)}
-  .bd-row{display:grid;grid-template-columns:1.6fr 1fr 2fr;gap:12px;padding:7px 2px;
-    border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;align-items:baseline}
-  .bd-label{color:var(--ink);font-weight:600}
-  .bd-val{color:var(--navy);text-align:right;font-weight:700}
+  .breakdown summary::before{content:'▸';color:var(--accent);transition:transform .2s}
+  .breakdown[open] summary::before{transform:rotate(90deg)}
+  .bd{border-top:1px solid var(--line);padding:4px 15px 10px}
+  .bd-row{display:grid;grid-template-columns:1.6fr 1fr 2fr;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;align-items:baseline}
+  .bd-row:last-child{border-bottom:none}
+  .bd-label{color:var(--ink);font-weight:500}
+  .bd-val{color:var(--ink-2);text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
   .bd-note{color:var(--faint);font-size:11px}
-  .bd-row:last-child .bd-val{color:var(--amber)}
+  .bd-row:last-child .bd-val{color:var(--amber);font-weight:700}
+
   .idle{color:var(--faint);font-family:var(--mono);font-size:13px;text-align:center;padding:70px 20px;line-height:1.9}
-  .idle code{background:var(--surface-2);padding:2px 7px;border-radius:5px;color:var(--amber)}
-  .cursor::after{content:'▋';color:var(--amber);animation:blink 1s steps(1) infinite}
+  .idle code{background:var(--surface-2);padding:2px 8px;border-radius:6px;color:var(--accent)}
+  .cursor::after{content:'▋';color:var(--accent);animation:blink 1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  @media(prefers-reduced-motion:reduce){.seg,.voyage{transition:none}.cursor::after{animation:none}}
+
+  .skeleton{height:100px;border-radius:var(--r);background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.3s infinite}
+  @keyframes shimmer{to{background-position:-200% 0}}
+
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:28px;padding-top:18px;border-top:1px solid var(--line);font:500 12px var(--mono);color:var(--faint);flex-wrap:wrap}
+  .foot .brand-row{display:flex;align-items:center;gap:8px}
+  .foot .brand-row svg{width:14px;height:14px;color:var(--accent)}
+
+  /* Toasts */
+  .toasts{position:fixed;right:22px;bottom:22px;z-index:100;display:flex;flex-direction:column;gap:10px}
+  .toast{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:12px 16px;font:600 13px var(--sans);color:var(--ink);box-shadow:var(--shadow-lg);min-width:230px;animation:toast-in .3s cubic-bezier(.2,.8,.2,1)}
+  .toast.ok{border-left-color:var(--teal)}
+  .toast.err{border-left-color:var(--red)}
+  .toast.out{animation:toast-out .3s ease forwards}
+  @keyframes toast-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @keyframes toast-out{to{opacity:0;transform:translateY(8px)}}
+
+  @media(prefers-reduced-motion:reduce){
+    .seg,.voyage,.kpi,.mk .ship,.icon-btn svg,.verdict,.toast,.reveal,.ticket,.float-chip{transition:none;animation:none}
+    .reveal{opacity:1;transform:none}
+    .cursor::after{animation:none}
+    html{scroll-behavior:auto}
+  }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <header>
+<body data-view="landing">
+<div class="shell">
+
+  <!-- App bar -->
+  <header class="topbar">
     <div class="brand">
-      <span class="anchor">⚓</span>
-      <h1>AnchorClaim</h1>
-      <span class="tag">Demurrage Audit · On-chain Settlement</span>
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg></span>
+      <div>
+        <div class="name">Anchor<span>Claim</span></div>
+        <div class="descr">Maritime Settlement Ops</div>
+      </div>
     </div>
-    <div class="sub">Voyage Sentinel Agent · Python backend</div>
+    <div class="topbar-right">
+      <div class="clock only-demo" title="Coordinated Universal Time"><span>UTC</span><b id="utcClock">--:--:--</b></div>
+      <div class="net-status only-demo" id="netStatus"><span class="pulse-dot"></span><span id="netText">Connecting…</span></div>
+      <button class="btn btn-primary btn-sm only-landing" data-goto="demo">Try the demo</button>
+      <button class="btn btn-ghost btn-sm only-demo" data-goto="landing">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Overview
+      </button>
+      <button class="icon-btn" id="themeToggle" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+    </div>
   </header>
 
-  <div class="layout">
-    <aside class="rail">
-      <div class="rail-head">
-        <h2>Fleet</h2>
-        <button class="clear-cache" id="clearCache" title="Clear cached results">Clear cache</button>
-      </div>
-      <div class="search-wrap">
-        <span class="search-icon">⌕</span>
-        <input id="search" class="search" type="text" placeholder="Search vessel, IMO or port…" autocomplete="off">
-      </div>
-      <div class="fleet" id="fleet"></div>
-      <div class="no-results" id="noResults" style="display:none">No vessels match your search.</div>
-      <p class="hint">Pick a voyage, then run the audit to watch the agent parse the contract, cross-check AIS, compute demurrage and settle on-chain.</p>
-    </aside>
+  <!-- LANDING -->
+  <main id="landing">
+    <section class="land-hero">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">Maritime settlement infrastructure</span>
+          <h1>Demurrage, settled in <span class="grad-text">seconds</span> — not weeks.</h1>
+          <p class="lead">AnchorClaim is an AI agent that audits maritime demurrage claims end-to-end: it parses the charter party, cross-checks port records against AIS tracks, computes the exact amount owed, and settles through an on-chain escrow — verifiable, and open to no one's bias.</p>
+          <div class="hero-cta">
+            <button class="btn btn-primary" data-goto="demo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Try the demo
+            </button>
+            <button class="btn btn-ghost" id="exploreBtn">Explore features</button>
+          </div>
+          <div class="hero-note"><i></i> Runs out of the box — web3 &amp; LLM are optional, with mock fallbacks</div>
+        </div>
 
-    <main class="stage" id="stage">
-      <div id="mapView">
-        <div class="map-head">
-          <div>
-            <div class="map-title">Fleet map — North Sea corridor</div>
-            <div class="map-sub">Click a vessel to open its audit. Search filters both the map and the list.</div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="ticket">
+            <div class="ticket-head"><span class="ticket-tag">Settlement ticket</span><span class="ticket-live"><i></i>live</span></div>
+            <div class="ticket-vessel"><b>MV Ocean Star</b></div>
+            <div class="ticket-route">Shanghai → Rotterdam</div>
+            <div class="ticket-amount">$43,750<small> demurrage</small></div>
+            <div class="ticket-bar"><span></span></div>
+            <div class="ticket-meta"><span>parse → calculate → settle</span><span>2.1s</span></div>
+            <div class="ticket-row">Evidence hash <code>0x8f2a…c41d</code> · Base Sepolia</div>
+          </div>
+          <div class="float-chip fc1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> AIS cross-checked</div>
+          <div class="float-chip fc2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Escrow settled on-chain</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stat-band">
+      <div class="stat reveal"><div class="stat-num" data-count="5">0</div><div class="stat-label">pipeline stages, fully instrumented</div></div>
+      <div class="stat reveal"><div class="stat-num" data-count="3">0</div><div class="stat-label">sample voyages across the North Sea</div></div>
+      <div class="stat reveal"><div class="stat-num" data-count="250" data-prefix="$" data-suffix="k">$0</div><div class="stat-label">auto-settle ceiling before human review</div></div>
+      <div class="stat reveal"><div class="stat-num" data-count="100" data-suffix="%">0</div><div class="stat-label">on-chain &amp; verifiable</div></div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="sec-head reveal">
+        <span class="eyebrow">Capabilities</span>
+        <h2>An end-to-end claim engine, not a spreadsheet.</h2>
+        <p>Every dollar is traced from the contract clause to the settlement transaction, with fraud checks and a human gate where it matters.</p>
+      </div>
+      <div class="features">
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg></div><h3>AI charter-party parsing</h3><p>Extracts laytime, daily rate and suspension clauses from free-text contracts into structured data — with a confidence score on every field.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"/><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"/><path d="M12 18h.01"/></svg></div><h3>AIS cross-check</h3><p>Compares the port's Statement of Facts against actual AIS in-port hours, flagging any material delta as a potential fraud before money moves.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg></div><h3>Automatic demurrage calc</h3><p>Deducts contractual suspension time — weather, strikes, congestion — and computes the exact penalty to the dollar, pro-rata by the day.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div><h3>On-chain escrow settlement</h3><p>Writes an evidence hash and the amount to an escrow contract that deducts the penalty, pays the owner, and refunds the remainder — immutably.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div><h3>Human-in-the-loop gate</h3><p>Low-confidence parses or amounts above the ceiling pause for review instead of auto-settling. High-risk cases never move funds unattended.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div><h3>Explainable output</h3><p>Every figure expands into a step-by-step breakdown — gross hours → exclusions → counted → excess → rate → total — so auditors can verify it.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head reveal">
+        <span class="eyebrow">How it works</span>
+        <h2>Five stages, one verifiable flow.</h2>
+        <p>Watch each stage execute live in the demo, from raw contract text to an on-chain attestation.</p>
+      </div>
+      <div class="pipeline">
+        <div class="pipe-step reveal"><div class="pipe-num">01</div><h4>Parse charter party</h4><p>LLM extraction of laytime, rate and exclusions into structured JSON.</p></div>
+        <div class="pipe-step reveal"><div class="pipe-num">02</div><h4>Fetch AIS track</h4><p>Pull the vessel's berthed-to-departure movement window.</p></div>
+        <div class="pipe-step reveal"><div class="pipe-num">03</div><h4>Cross-check records</h4><p>Reconcile the port log against AIS; flag any conflict.</p></div>
+        <div class="pipe-step reveal"><div class="pipe-num">04</div><h4>Compute demurrage</h4><p>Deduct suspensions and calculate the exact penalty owed.</p></div>
+        <div class="pipe-step reveal"><div class="pipe-num">05</div><h4>Settle on-chain</h4><p>Submit evidence hash + amount to escrow for settlement.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head reveal">
+        <span class="eyebrow">Why on-chain</span>
+        <h2>Built for trust between charterers and owners.</h2>
+        <p>Settlement is deterministic, signed by evidence, and auditable by both parties.</p>
+      </div>
+      <div class="benefits">
+        <div class="benefit-list">
+          <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><h4>No manual reconciliation</h4><p>The agent replaces weeks of back-and-forth with a repeatable, second-scale computation.</p></div></div>
+          <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><h4>Fraud-resistant by design</h4><p>Discrepant SoF vs AIS records block auto-settlement and route to review, preventing settlement on falsified logs.</p></div></div>
+          <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><div><h4>Confidence-gated automation</h4><p>Only high-confidence, under-ceiling claims auto-settle; everything else waits for a human approver.</p></div></div>
+        </div>
+        <div class="sec-card reveal">
+          <div class="k">On-chain evidence</div>
+          <h2 style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--ink);margin-top:10px">One hash. Full audit trail.</h2>
+          <p style="margin-top:8px">The contract, port log and AIS track are folded into a single SHA-256 evidence hash, written to the escrow contract alongside the amount.</p>
+          <div class="hash">0x9c41ef2e7b01a8c3d45e6f0a21bd9e88c7a54f1b</div>
+          <p style="font-family:var(--mono);font-size:12px;color:var(--faint)">keccak256(voyageId) → settle(hours, amount, evidenceHash)</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-band reveal">
+      <h2>See it on real sample voyages.</h2>
+      <p>Audit MV Ocean Star, MV Nord Wind and MV Delta Spirit — demurrage, no-demurrage, and a fraud dispute — right in the browser.</p>
+      <button class="btn btn-primary" data-goto="demo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Try the demo
+      </button>
+    </section>
+
+    <footer class="land-foot">
+      <span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>AnchorClaim · Maritime settlement infrastructure</span>
+      <span class="links"><a href="#features">Features</a><span>·</span><span>Built for NTU InnovateX Hackathon 2026</span></span>
+    </footer>
+  </main>
+
+  <!-- DEMO -->
+  <div id="demo">
+    <div class="demo-head">
+      <div>
+        <span class="eyebrow">Voyage command center</span>
+        <h1>Audit &amp; settle in real time.</h1>
+        <p class="lead">Select a voyage, run the audit, and watch each stage execute before the verdict is settled.</p>
+      </div>
+      <button class="btn btn-primary" id="heroRun">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Audit next voyage
+      </button>
+    </div>
+
+    <section class="kpis" aria-label="Fleet metrics">
+      <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/><path d="M19.4 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.95 5.34 2.82 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 11v4"/><path d="M12 3v3"/></svg></span><span class="k-tag">Vessels</span></div><div class="k-value" id="kFleet">0</div><div class="k-sub">in the monitored fleet</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="k-tag">Escrow</span></div><div class="k-value" id="kEscrow">$0</div><div class="k-sub">total deposits escrowed</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag">Recovered</span></div><div class="k-value" id="kRecovered">$0</div><div class="k-sub">auto-settled claims</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span class="k-tag">Alerts</span></div><div class="k-value" id="kAlerts">0</div><div class="k-sub" id="kAlertsSub">disputes + reviews</div></div>
+    </section>
+
+    <section class="status-strip" aria-label="Fleet status">
+      <div class="ss-head"><span class="ss-title">Fleet status</span><span class="ss-count" id="ssCount">0 vessels</span></div>
+      <div class="ss-bar" id="ssBar"></div>
+      <div class="ss-legend" id="ssLegend"></div>
+    </section>
+
+    <div class="layout">
+      <aside class="rail">
+        <div class="rail-head"><h2>Fleet</h2><button class="clear-cache" id="clearCache" title="Clear cached audit results">Clear cache</button></div>
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="search" class="search" type="text" placeholder="Search vessel, IMO or port…" autocomplete="off" spellcheck="false">
+          <span class="kbd-hint">/</span>
+        </div>
+        <div class="filters" id="filters"></div>
+        <div class="fleet" id="fleet"></div>
+        <div class="no-results" id="noResults" style="display:none">No vessels match your search.</div>
+        <p class="hint">Select a voyage, then run the audit to watch the agent parse the contract, cross-check AIS, compute demurrage and settle on-chain.</p>
+      </aside>
+
+      <main class="stage" id="stage">
+        <div id="mapView">
+          <div class="map-head">
+            <div><div class="map-title">Fleet map — North Sea corridor</div><div class="map-sub">Rotterdam · Hamburg · Antwerp. Click a vessel to open its audit.</div></div>
+            <div class="legend">
+              <span><i style="background:var(--amber)"></i>Demurrage</span>
+              <span><i style="background:var(--teal)"></i>No demurrage</span>
+              <span><i style="background:var(--red)"></i>Dispute</span>
+              <span><i style="background:var(--faint)"></i>Not run</span>
+            </div>
+          </div>
+          <div class="map" id="map">
+            <svg id="mapSvg" viewBox="0 0 700 460" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="map-markers" id="mapMarkers"></div>
           </div>
         </div>
-        <div class="map" id="map">
-          <svg id="mapSvg" viewBox="0 0 700 460" preserveAspectRatio="xMidYMid meet"></svg>
-          <div class="map-markers" id="mapMarkers"></div>
-        </div>
-      </div>
-      <div id="detail" style="display:none"></div>
-    </main>
+        <div id="detail" style="display:none"></div>
+      </main>
+    </div>
+
+    <footer class="foot">
+      <span class="brand-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>AnchorClaim · Maritime settlement infrastructure</span>
+      <span>Agent pipeline · parse → calculate → settle</span>
+    </footer>
   </div>
+
 </div>
-<!-- retained for backward-compat; hidden -->
-<div id="idle" style="display:none"></div>
+<div class="toasts" id="toasts"></div>
 
 <script>
-const API = "";                 // same origin (Flask serves this page)
-let DATA = {};                  // voyageId -> list metadata
-let AUDIT = {};                 // voyageId -> full audit result
+const API = "";
+let DATA = {};
+let AUDIT = {};
 let activeId = null, running = false;
+const state = { filter: 'all' };
 
+const fleet = document.getElementById('fleet');
+const detail = document.getElementById('detail');
+const mapView = document.getElementById('mapView');
+
+/* ---------------- Theme ---------------- */
+(function initTheme(){
+  const saved = localStorage.getItem('anchorclaim-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+})();
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('anchorclaim-theme', next);
+});
+
+/* ---------------- View navigation ---------------- */
+function showDemo(){
+  document.body.setAttribute('data-view','demo');
+  window.scrollTo(0,0);
+  requestAnimationFrame(()=>renderMapMarkers());
+}
+function showLanding(){
+  document.body.setAttribute('data-view','landing');
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('[data-goto="demo"]').forEach(b=>b.addEventListener('click', showDemo));
+document.querySelectorAll('[data-goto="landing"]').forEach(b=>b.addEventListener('click', showLanding));
+document.getElementById('exploreBtn').addEventListener('click', ()=>{
+  document.getElementById('features').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+/* ---------------- Clock ---------------- */
+function tickClock(){
+  document.getElementById('utcClock').textContent = new Date().toISOString().slice(11,19);
+}
+setInterval(tickClock,1000); tickClock();
+
+/* ---------------- Landing FX ---------------- */
+function initLandingFx(){
+  if(!('IntersectionObserver' in window)){ document.querySelectorAll('.reveal').forEach(e=>e.classList.add('in')); return; }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  },{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  const cio = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      const el=en.target, target=parseFloat(el.dataset.count||'0'), prefix=el.dataset.prefix||'', suffix=el.dataset.suffix||'';
+      const dur=1200, start=performance.now();
+      function tick(now){ const t=Math.min(1,(now-start)/dur); const eased=1-Math.pow(1-t,3);
+        el.textContent=prefix+Math.round(target*eased).toLocaleString('en-US')+suffix;
+        if(t<1) requestAnimationFrame(tick); }
+      requestAnimationFrame(tick);
+      cio.unobserve(el);
+    });
+  },{threshold:.5});
+  document.querySelectorAll('.stat-num[data-count]').forEach(el=>cio.observe(el));
+}
+initLandingFx();
+
+/* ---------------- Icons ---------------- */
+const anchorSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>`;
+const backSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`;
+const playSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+
+/* ---------------- Status maps ---------------- */
 const BADGE = {
   demurrage:{cls:"s-demurrage",text:"Demurrage"},
   none:{cls:"s-none",text:"No demurrage"},
   dispute:{cls:"s-dispute",text:"Dispute"},
   needs_review:{cls:"s-review",text:"Review"},
 };
-const fleet = document.getElementById('fleet');
-const idle = document.getElementById('idle');
-const detail = document.getElementById('detail');
-const mapView = document.getElementById('mapView');
+const VD = {demurrage:'vd-demurrage', none:'vd-none', dispute:'vd-dispute', needs_review:'vd-review'};
+function statusOf(v){
+  if(!v.cached || !v._verdict) return 'unrun';
+  return v._verdict === 'needs_review' ? 'review' : v._verdict;
+}
 
-// Port positions on the map viewBox (700x460). North Sea / NW Europe corridor.
+/* ---------------- Ports / map ---------------- */
 const PORTS = {
   "Port of Rotterdam": {x:265, y:225, label:"Rotterdam"},
   "Port of Hamburg":   {x:470, y:170, label:"Hamburg"},
@@ -283,31 +789,72 @@ const PORTS = {
 };
 function portPos(name){ return PORTS[name] || {x:360, y:230, label:(name||'').replace('Port of ','')}; }
 
-const VD = {demurrage:'vd-demurrage', none:'vd-none', dispute:'vd-dispute', needs_review:'vd-review'};
+const ROUTES = [
+  {d:"M0,300 C 55,296 100,288 140,280 C 185,271 230,254 265,225", ship:"var(--accent)", dur:"19s", begin:"0s"},
+  {d:"M265,225 Q 360,150 470,170", ship:"var(--amber)", dur:"24s", begin:"2.5s"},
+  {d:"M215,320 Q 240,275 265,225", ship:"var(--teal)", dur:"21s", begin:"5s"},
+];
+const COAST = "M0,460 L0,302 C 20,296 32,278 56,280 C 76,282 86,260 110,265 C 132,270 142,289 165,287 C 186,285 195,265 215,268 C 235,271 246,249 270,252 C 296,255 316,236 342,244 C 372,252 382,227 412,229 C 448,231 456,211 486,214 C 520,218 546,200 586,205 C 626,210 662,197 700,201 L700,460 Z";
+const ISLE1 = "M44,92 C 62,70 96,67 118,84 C 136,100 128,130 104,135 C 80,140 50,131 38,110 Z";
+const ISLE2 = "M622,64 C 652,56 680,63 690,86 C 697,105 680,120 656,119 C 630,118 618,101 620,80 Z";
 
 function drawMapBase(){
   const svg=document.getElementById('mapSvg');
   svg.innerHTML = `
     <defs>
       <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#DCEAF6"/><stop offset="1" stop-color="#CFE0F0"/>
+        <stop offset="0" stop-color="var(--sea-1)"/><stop offset="1" stop-color="var(--sea-2)"/>
       </linearGradient>
     </defs>
     <rect x="0" y="0" width="700" height="460" fill="url(#sea)"/>
-    <path d="M120,460 L120,300 Q160,270 200,285 Q240,300 250,270 L270,250
-             Q300,230 340,245 L380,210 Q430,190 470,205 L520,180
-             Q560,170 600,185 L700,170 L700,460 Z"
-          fill="#E7EFDF" stroke="#CBD9C4" stroke-width="1.5"/>
-    <path d="M60,240 Q90,220 110,250 Q120,290 90,320 Q60,330 55,300 Q50,265 60,240 Z"
-          fill="#E7EFDF" stroke="#CBD9C4" stroke-width="1.5"/>
-    <text x="600" y="430" class="port-label" opacity="0.6">North Sea corridor</text>`;
+    <g class="grid-line">
+      <path d="M0 105 H700"/><path d="M0 195 H700"/><path d="M0 285 H700"/><path d="M0 375 H700"/>
+      <path d="M130 0 V460"/><path d="M300 0 V460"/><path d="M470 0 V460"/><path d="M640 0 V460"/>
+    </g>
+    <path class="bathy" d="M90,180 Q 200,150 310,172 T 540,152 T 690,168"/>
+    <path class="bathy" d="M70,225 Q 230,202 410,224 T 660,206"/>
+    <path class="bathy" d="M180,90 Q 270,70 360,95"/>
+    ${ROUTES.map(r=>`<path class="route" d="${r.d}"/>`).join('')}
+    <path class="coastfoam" d="${COAST}"/>
+    <path d="${COAST}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
+    <path class="coastfoam" d="${ISLE1}"/>
+    <path d="${ISLE1}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
+    <path class="coastfoam" d="${ISLE2}"/>
+    <path d="${ISLE2}" fill="var(--land)" stroke="var(--land-line)" stroke-width="1.5"/>
+    <text x="150" y="450" class="coord">2°E</text>
+    <text x="400" y="450" class="coord">5°E</text>
+    <text x="640" y="450" class="coord">8°E</text>
+    <text x="8" y="108" class="coord">54°N</text>
+    <text x="8" y="230" class="coord">53°N</text>
+    <g class="compass" transform="translate(646,74)">
+      <circle r="15" fill="var(--surface)" fill-opacity=".7" stroke="var(--line-strong)"/>
+      <path d="M0,-11 L4,-2 L0,-5 L-4,-2 Z" fill="var(--accent)"/>
+      <path d="M0,11 L4,2 L0,5 L-4,2 Z" fill="var(--faint)"/>
+      <text y="-19" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">N</text>
+    </g>
+    <g class="compass" transform="translate(30,428)">
+      <line x1="0" y1="0" x2="80" y2="0" stroke="var(--line-strong)" stroke-width="2"/>
+      <line x1="0" y1="-4" x2="0" y2="4" stroke="var(--line-strong)" stroke-width="2"/>
+      <line x1="80" y1="-4" x2="80" y2="4" stroke="var(--line-strong)" stroke-width="2"/>
+      <text x="0" y="14" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">0</text>
+      <text x="80" y="14" text-anchor="end" fill="var(--faint)" font-family="var(--mono)" font-size="8.5">200 nm</text>
+    </g>
+    ${ROUTES.map(r=>`
+      <g>
+        <circle r="4" fill="${r.ship}" opacity=".22"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${r.d}" begin="${r.begin}"/></circle>
+        <circle r="2.3" fill="${r.ship}"><animateMotion dur="${r.dur}" repeatCount="indefinite" rotate="auto" path="${r.d}" begin="${r.begin}"/></circle>
+      </g>`).join('')}`;
   for(const [name,p] of Object.entries(PORTS)){
+    const pulse=document.createElementNS("http://www.w3.org/2000/svg","circle");
+    pulse.setAttribute("cx",p.x); pulse.setAttribute("cy",p.y); pulse.setAttribute("r","9");
+    pulse.setAttribute("fill","var(--accent)"); pulse.setAttribute("opacity",".28"); pulse.setAttribute("class","port-pulse");
+    svg.appendChild(pulse);
     const c=document.createElementNS("http://www.w3.org/2000/svg","circle");
-    c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r","4");
-    c.setAttribute("fill","#5E7183");
+    c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r","5");
+    c.setAttribute("fill","var(--accent)");
     svg.appendChild(c);
     const t=document.createElementNS("http://www.w3.org/2000/svg","text");
-    t.setAttribute("x",p.x); t.setAttribute("y",p.y+18); t.setAttribute("text-anchor","middle");
+    t.setAttribute("x",p.x); t.setAttribute("y",p.y+24); t.setAttribute("text-anchor","middle");
     t.setAttribute("class","port-label"); t.textContent=p.label;
     svg.appendChild(t);
   }
@@ -323,14 +870,16 @@ function renderMapMarkers(){
   for(const [port,vs] of Object.entries(byPort)){
     const p=portPos(port);
     vs.forEach((v,i)=>{
-      const off=(i-(vs.length-1)/2)*54;
+      const off=(i-(vs.length-1)/2)*58;
       const px=((p.x+off)/700)*W, py=((p.y-14)/460)*H;
-      const vd=VD[v._verdict]||'vd-unrun';
+      const s=statusOf(v);
+      const vd=s==='unrun' ? 'vd-unrun' : (VD[v._verdict]||'vd-unrun');
       const el=document.createElement('button');
-      el.className='mk'; el.dataset.id=v.id;
+      el.className='mk'; el.dataset.id=v.id; el.dataset.vd=v._verdict||'unrun';
       el.dataset.search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
       el.style.left=px+'px'; el.style.top=py+'px';
-      el.innerHTML=`<div class="pin">🚢</div><div class="lbl"><span class="vdot ${vd}"></span>${v.vessel}</div>`;
+      el.title=v.vessel+' · '+v.port+' · '+s;
+      el.innerHTML=`<div class="ship">${anchorSvg}</div><div class="lbl"><span class="vdot ${vd}"></span>${v.vessel}</div>`;
       el.onclick=()=>select(v.id);
       wrap.appendChild(el);
     });
@@ -338,122 +887,201 @@ function renderMapMarkers(){
 }
 window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') renderMapMarkers(); });
 
-function cardInner(v){
-  const badge = v.cached && v._verdict
-    ? `<span class="vs ${(BADGE[v._verdict]||BADGE.none).cls}" data-badge>${(BADGE[v._verdict]||BADGE.none).text}</span>`
-    : `<span class="vs s-loading" data-badge>Not run</span>`;
-  const cachedTag = v.cached ? `<div class="cached-dot">cached</div>` : ``;
-  return `<div>
-      <div class="vn">${v.vessel}</div>
-      <div class="vm">${v.imo} · ${v.port}</div>
-      ${cachedTag}
-    </div>
-    ${badge}`;
+/* ---------------- Fleet list & filters ---------------- */
+const FILTERS = [
+  {key:'all', label:'All'},
+  {key:'demurrage', label:'Demurrage'},
+  {key:'none', label:'Clear'},
+  {key:'dispute', label:'Dispute'},
+  {key:'review', label:'Review'},
+  {key:'unrun', label:'Pending'},
+];
+
+function renderFilters(){
+  const wrap=document.getElementById('filters');
+  wrap.innerHTML = FILTERS.map(f=>{
+    const n = Object.values(DATA).filter(v=> f.key==='all' || statusOf(v)===f.key).length;
+    return `<button class="chip ${state.filter===f.key?'active':''}" data-filter="${f.key}" title="${f.label}">${f.label}<span class="n">${n}</span></button>`;
+  }).join('');
+  wrap.querySelectorAll('.chip').forEach(c=>{ c.onclick=()=>{ state.filter=c.dataset.filter; renderFilters(); refreshView(); }; });
 }
 
+function refreshView(){
+  const q=(document.getElementById('search').value||'').trim().toLowerCase();
+  const f=state.filter;
+  let visible=0;
+  document.querySelectorAll('.voyage').forEach(el=>{
+    const v=DATA[el.dataset.id];
+    const match=(!q || el.dataset.search.includes(q)) && (f==='all' || statusOf(v)===f);
+    el.classList.toggle('hidden',!match);
+    if(match) visible++;
+  });
+  document.querySelectorAll('.mk').forEach(el=>{
+    const v=DATA[el.dataset.id];
+    el.classList.toggle('hidden', !((!q || (el.dataset.search||'').includes(q)) && (f==='all' || statusOf(v)===f)));
+  });
+  document.getElementById('noResults').style.display = visible===0 ? 'block':'none';
+}
+
+function cardInner(v){
+  const badge = v.cached && v._verdict
+    ? `<span class="vs ${(BADGE[v._verdict]||BADGE.none).cls}">${(BADGE[v._verdict]||BADGE.none).text}</span>`
+    : `<span class="vs s-loading">Pending</span>`;
+  const cachedTag = v.cached ? `<span class="cached-dot">cached</span>` : ``;
+  return `<div>
+      <div class="v-top"><div class="vn">${v.vessel}</div>${badge}</div>
+      <div class="vm">IMO <b>${v.imo}</b> · ${v.port}</div>
+      <div class="v-foot"><span class="v-dep">Deposit ${fmt(v.deposit)}</span>${cachedTag}</div>
+    </div>`;
+}
+
+/* ---------------- KPIs + status strip ---------------- */
+function computeStats(){
+  let escrow=0, recovered=0, disputes=0, reviews=0;
+  Object.values(DATA).forEach(v=>{ escrow += v.deposit||0; });
+  Object.values(AUDIT).forEach(R=>{
+    const v=R.verdict||{};
+    if(v.type==='demurrage') recovered += v.penalty||0;
+    if(v.type==='dispute') disputes++;
+    if(v.type==='needs_review') reviews++;
+  });
+  return { vessels:Object.keys(DATA).length, escrow, recovered, disputes, reviews, alerts:disputes+reviews };
+}
+function renderKPIs(){
+  const s=computeStats();
+  document.getElementById('kFleet').textContent=s.vessels;
+  document.getElementById('kEscrow').textContent=fmt(s.escrow);
+  document.getElementById('kRecovered').textContent=fmt(s.recovered);
+  document.getElementById('kAlerts').textContent=s.alerts;
+  document.getElementById('kAlertsSub').textContent = s.disputes+' dispute'+(s.disputes!==1?'s':'')+' · '+s.reviews+' review'+(s.reviews!==1?'s':'');
+}
+function renderStatusStrip(){
+  const order=[['demurrage','Demurrage'],['none','No demurrage'],['dispute','Dispute'],['review','Review'],['unrun','Pending']];
+  const colors={demurrage:'var(--amber)',none:'var(--teal)',dispute:'var(--red)',review:'var(--gold)',unrun:'var(--faint)'};
+  const counts={}; order.forEach(([k])=>counts[k]=0);
+  Object.values(DATA).forEach(v=>{ const s=statusOf(v); counts[s]=(counts[s]||0)+1; });
+  const total=Math.max(1,Object.keys(DATA).length);
+  const seg=order.map(([k])=>{ const n=counts[k]||0; return n>0?`<span class="ss-seg" style="width:${(n/total*100).toFixed(2)}%;background:${colors[k]}" title="${k}: ${n}"></span>`:''; }).join('');
+  const legend=order.map(([k,lab])=>`<span class="ss-item"><i style="background:${colors[k]}"></i>${lab} <b>${counts[k]||0}</b></span>`).join('');
+  document.getElementById('ssBar').innerHTML=seg;
+  document.getElementById('ssLegend').innerHTML=legend;
+  document.getElementById('ssCount').textContent=Object.keys(DATA).length+' vessels';
+}
+
+/* ---------------- Toasts ---------------- */
+function toast(msg, type='info'){
+  const wrap=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className='toast '+(type==='ok'?'ok':type==='err'?'err':'');
+  el.innerHTML=`<span>${type==='ok'?'✓':type==='err'?'⚠':'●'}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),320); }, 2600);
+}
+
+/* ---------------- Boot ---------------- */
 async function boot(){
+  fleet.innerHTML=`<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
   try{
-    const r = await fetch(API+"/api/voyages");
+    const r=await fetch(API+"/api/voyages");
     if(!r.ok) throw new Error("api "+r.status);
-    const {voyages} = await r.json();
+    const {voyages}=await r.json();
+    fleet.innerHTML='';
     for(const v of voyages){
       DATA[v.id]=v;
       const b=document.createElement('button');
       b.className='voyage'; b.dataset.id=v.id;
       b.dataset.search=(v.vessel+' '+v.imo+' '+v.port).toLowerCase();
-      // for already-cached voyages, pull the verdict to colour the badge (served instantly from disk)
-      if(v.cached){
-        try{ const res=await fetchAudit(v.id); v._verdict=res.verdict.type; }catch(e){}
-      }
+      if(v.cached){ try{ const res=await fetchAudit(v.id); v._verdict=res.verdict.type; }catch(e){} }
       b.innerHTML=cardInner(v);
       b.onclick=()=>select(v.id);
       fleet.appendChild(b);
     }
+    setNetStatus(true);
     wireSearch();
     wireClearCache();
+    wireDemoRun();
     drawMapBase();
     renderMapMarkers();
+    renderFilters();
+    renderKPIs();
+    renderStatusStrip();
   }catch(e){
+    setNetStatus(false);
     mapView.innerHTML=`<div class="idle" style="display:block">Cannot reach the Python backend (${e.message}).<br><br>
       Start it first:<br><code>cd backend &amp;&amp; pip install flask &amp;&amp; python server.py</code><br>
       then open <code>http://localhost:8788</code></div>`;
   }
 }
 
-function wireSearch(){
-  const box=document.getElementById('search');
-  const noRes=document.getElementById('noResults');
-  box.addEventListener('input',()=>{
-    const q=box.value.trim().toLowerCase();
-    let visible=0;
-    document.querySelectorAll('.voyage').forEach(el=>{
-      const match=!q || el.dataset.search.includes(q);
-      el.classList.toggle('hidden',!match);
-      if(match) visible++;
-    });
-    // filter map markers in sync with the list
-    document.querySelectorAll('.mk').forEach(el=>{
-      const match=!q || (el.dataset.search||'').includes(q);
-      el.classList.toggle('hidden',!match);
-    });
-    noRes.style.display = visible===0 ? 'block' : 'none';
-  });
+function setNetStatus(ok){
+  const el=document.getElementById('netStatus');
+  el.classList.toggle('ok',ok); el.classList.toggle('err',!ok);
+  document.getElementById('netText').textContent = ok ? 'Backend online' : 'Backend offline';
 }
+
+function wireSearch(){ document.getElementById('search').addEventListener('input', refreshView); }
 
 function wireClearCache(){
   document.getElementById('clearCache').addEventListener('click',async()=>{
     try{
-      await fetch(API+"/api/cache",{method:"DELETE"});
+      const r=await fetch(API+"/api/cache",{method:"DELETE"});
+      const {cleared}=await r.json();
       AUDIT={};
-      document.querySelectorAll('.voyage').forEach(el=>{
-        const v=DATA[el.dataset.id]; v.cached=false; v._verdict=null;
-        el.innerHTML=cardInner(v);
-      });
-      renderMapMarkers();  // reset marker colours to "not run"
-    }catch(e){/* ignore */}
+      Object.values(DATA).forEach(v=>{ v.cached=false; v._verdict=null; });
+      document.querySelectorAll('.voyage').forEach(el=>{ el.innerHTML=cardInner(DATA[el.dataset.id]); });
+      renderMapMarkers(); renderFilters(); renderKPIs(); renderStatusStrip(); refreshView();
+      toast(`Cache cleared (${cleared} entries).`,'ok');
+    }catch(e){ toast('Could not clear cache.','err'); }
+  });
+}
+
+function wireDemoRun(){
+  document.getElementById('heroRun').addEventListener('click',()=>{
+    const next=Object.values(DATA).find(v=>statusOf(v)==='unrun') || Object.values(DATA)[0];
+    if(next){ backToMap(); select(next.id); document.getElementById('stage').scrollIntoView({behavior:'smooth', block:'start'}); }
   });
 }
 
 async function fetchAudit(id, force){
   if(AUDIT[id] && !force) return AUDIT[id];
-  const r = await fetch(API+"/api/audit/"+id+(force?"?refresh=1":""));
+  const r=await fetch(API+"/api/audit/"+id+(force?"?refresh=1":""));
   if(!r.ok) throw new Error("audit "+r.status);
   AUDIT[id]=await r.json();
   return AUDIT[id];
 }
 
-// mark a card as cached and colour its badge after a run; also update the map marker
 function markCardCached(id, verdictType){
-  const v = DATA[id]; if(!v) return;
-  v.cached = true; v._verdict = verdictType;
-  const el = fleet.querySelector(`[data-id="${id}"]`);
-  if(el) el.innerHTML = cardInner(v);
-  const mk = document.querySelector(`.mk[data-id="${id}"] .vdot`);
-  if(mk) mk.className = `vdot ${VD[verdictType]||'vd-unrun'}`;
+  const v=DATA[id]; if(!v) return;
+  v.cached=true; v._verdict=verdictType;
+  const el=fleet.querySelector(`[data-id="${id}"]`);
+  if(el) el.innerHTML=cardInner(v);
+  const mk=document.querySelector(`.mk[data-id="${id}"]`);
+  if(mk){
+    mk.dataset.vd=verdictType;
+    const d=mk.querySelector('.vdot'); if(d) d.className=`vdot ${VD[verdictType]||'vd-unrun'}`;
+  }
+  renderFilters(); renderKPIs(); renderStatusStrip();
 }
 
-const fmt = n => '$'+Number(n).toLocaleString('en-US');
-
+const fmt = n => '$'+Number(n||0).toLocaleString('en-US');
 const STEP_TITLES = ['Parse charter party','Fetch AIS track','Cross-check port log vs AIS','Compute demurrage','Settle on-chain'];
 
+/* ---------------- Select / detail ---------------- */
 function select(id){
-  if (running) return;
-  activeId = id;
+  if(running) return;
+  activeId=id;
   document.querySelectorAll('.voyage').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
   mapView.style.display='none'; detail.style.display='block';
-  const v = DATA[id];
-  detail.innerHTML = `
-    <button class="back-map" id="backMap">← Back to map</button>
+  const v=DATA[id];
+  detail.innerHTML=`
+    <button class="back-map" id="backMap">${backSvg} Back to map</button>
     <div class="voyage-head">
       <div>
         <div class="vt">${v.vessel}</div>
         <div class="vmeta">${id} · IMO ${v.imo} · ${v.port}</div>
-        <div class="contract">
-          <span>Freight <b>${fmt(v.freight)}</b></span>
-          <span>Deposit <b>${fmt(v.deposit)}</b></span>
-        </div>
+        <div class="contract"><span>Freight <b>${fmt(v.freight)}</b></span><span>Deposit <b>${fmt(v.deposit)}</b></span></div>
       </div>
-      <button class="run" id="runBtn">Run audit</button>
+      <button class="run" id="runBtn">${playSvg} Run audit</button>
     </div>
     <div class="cp-wrap">
       <button class="cp-toggle" id="cpToggle">▸ View / edit charter party</button>
@@ -468,41 +1096,33 @@ function select(id){
     </div>
     <div class="steps" id="steps"></div>
     <div id="result"></div>`;
-  document.getElementById('backMap').onclick = backToMap;
-  document.getElementById('runBtn').onclick = ()=>runAudit(id);
-  document.getElementById('cpToggle').onclick = ()=>{
+  document.getElementById('backMap').onclick=backToMap;
+  document.getElementById('runBtn').onclick=()=>runAudit(id);
+  document.getElementById('cpToggle').onclick=()=>{
     const b=document.getElementById('cpBody'), t=document.getElementById('cpToggle');
     const open=b.style.display==='none';
     b.style.display=open?'block':'none';
     t.textContent=(open?'▾':'▸')+' View / edit charter party';
   };
-  document.getElementById('cpRun').onclick = ()=>runAudit(id, document.getElementById('cpText').value);
-  document.getElementById('cpReset').onclick = ()=>{ document.getElementById('cpText').value=(v.contract_text||'').trim(); };
+  document.getElementById('cpRun').onclick=()=>runAudit(id, document.getElementById('cpText').value);
+  document.getElementById('cpReset').onclick=()=>{ document.getElementById('cpText').value=(v.contract_text||'').trim(); };
 
-  // Request 1: if we've already audited this vessel this session, show the result
-  // immediately (no need to re-run). Otherwise show the empty step list.
-  if (AUDIT[id]){
-    showResult(AUDIT[id]);
-    document.getElementById('runBtn').textContent='Re-run';
-  } else {
-    renderSteps(STEP_TITLES, -1);
-    document.getElementById('result').innerHTML='';
-  }
+  if(AUDIT[id]){ showResult(AUDIT[id]); document.getElementById('runBtn').innerHTML=playSvg+' Re-run'; }
+  else { renderSteps(STEP_TITLES, -1); document.getElementById('result').innerHTML=''; }
 }
 
 function backToMap(){
-  if (running) return;
+  if(running) return;
   activeId=null;
   detail.style.display='none'; mapView.style.display='block';
   document.querySelectorAll('.voyage').forEach(el=>el.classList.remove('active'));
   renderMapMarkers();
 }
 
-// Render a completed audit instantly (no typing animation) — used when returning
-// to an already-audited vessel.
+/* ---------------- Result ---------------- */
 function showResult(R){
   const c=R.contract, rc=R.receipt, ck=R.check, v=R.verdict;
-  const isDispute = v.type==='dispute';
+  const isDispute=v.type==='dispute';
   const conds=(c.suspension_conditions||[]).join(', ')||'none';
   const conf=c.confidence||{};
   const confTag=(f)=>{const val=conf[f];if(val===undefined)return '';const lo=val<0.6;return `  [confidence ${(val*100).toFixed(0)}%${lo?' ⚠ low':''}]`;};
@@ -516,7 +1136,7 @@ function showResult(R){
       :(v.type==='needs_review'?`Paused for human review before settlement.`
         :(R.settlement?`Attestation generated, submitted to escrow contract\n${R.settlement.chain}`:`No demurrage - final balance released`)),
   ];
-  const upto = isDispute ? 3 : STEP_TITLES.length;
+  const upto=isDispute ? 3 : STEP_TITLES.length;
   renderSteps(STEP_TITLES, upto, isDispute?2:-1);
   for(let i=0;i<STEP_TITLES.length;i++){
     if(isDispute && i>2) break;
@@ -528,12 +1148,12 @@ function showResult(R){
 }
 
 function renderSteps(titles, upto, failIdx=-1){
-  const wrap = document.getElementById('steps');
-  wrap.innerHTML = titles.map((t,i)=>{
+  const wrap=document.getElementById('steps');
+  wrap.innerHTML=titles.map((t,i)=>{
     let cls='step', mark=(i+1);
-    if (i<upto){cls+=' on done'; mark='✓'}
-    else if (i===upto){cls+=(i===failIdx)?' on fail':' on'; if(i===failIdx)mark='✕'}
-    return `<div class="${cls}" data-i="${i}"><div class="dot">${mark}</div>
+    if(i<upto){cls+=' on done'; mark='✓'}
+    else if(i===upto){cls+=(i===failIdx)?' on fail':' on'; if(i===failIdx)mark='✕'}
+    return `<div class="${cls}" data-i="${i}"><div class="step-marker"><div class="dot">${mark}</div></div>
       <div><div class="title">${t}</div><div class="body" id="body-${i}"></div></div></div>`;
   }).join('');
 }
@@ -541,89 +1161,83 @@ function renderSteps(titles, upto, failIdx=-1){
 const wait = ms=>new Promise(r=>setTimeout(r,ms));
 async function type(el, text){
   el.classList.add('cursor'); el.textContent='';
-  for (let i=0;i<text.length;i++){ el.textContent+=text[i]; if(i%2===0) await wait(6); }
+  for(let i=0;i<text.length;i++){ el.textContent+=text[i]; if(i%2===0) await wait(6); }
   el.classList.remove('cursor');
 }
 
 async function runAudit(id, editedContract){
   running=true;
   const btn=document.getElementById('runBtn');
-  const isRerun = btn.textContent==='Re-run';
-  btn.disabled=true; btn.textContent = editedContract ? 'Re-auditing…' : (isRerun ? 'Re-running…' : 'Auditing…');
+  const isRerun=btn.textContent.includes('Re-run');
+  btn.disabled=true;
+  btn.innerHTML=`<span class="spinner"></span> ${editedContract?'Re-auditing…':(isRerun?'Re-running…':'Auditing…')}`;
   const cpRun=document.getElementById('cpRun'); if(cpRun) cpRun.disabled=true;
+  document.getElementById('result').innerHTML='';
   let R;
   try{
-    if (editedContract){
-      const r=await fetch(API+"/api/audit/"+id,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({contract_text:editedContract})});
+    if(editedContract){
+      const r=await fetch(API+"/api/audit/"+id,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contract_text:editedContract})});
       if(!r.ok) throw new Error("audit "+r.status);
       R=await r.json();
-    } else {
-      R = await fetchAudit(id, isRerun);
-    }
+    } else { R=await fetchAudit(id, isRerun); }
   }
-  catch(e){ document.getElementById('result').innerHTML=`<div class="idle">Audit failed: ${e.message}</div>`; btn.disabled=false; if(cpRun) cpRun.disabled=false; running=false; return; }
+  catch(e){
+    document.getElementById('result').innerHTML=`<div class="idle">Audit failed: ${e.message}</div>`;
+    btn.disabled=false; btn.innerHTML=`${playSvg} Re-run`; if(cpRun) cpRun.disabled=false; running=false;
+    toast('Audit failed: '+e.message,'err'); return;
+  }
 
   if(!editedContract) markCardCached(id, R.verdict.type);
-  const fromCache = R._cached === true && !isRerun && !editedContract;
+  const fromCache = R._cached===true && !isRerun && !editedContract;
 
-  const c = R.contract, rc = R.receipt, ck = R.check, v = R.verdict;
-  const isDispute = v.type==='dispute';
-  const conds = (c.suspension_conditions||[]).join(', ') || 'none';
-  const conf = c.confidence || {};
-  const confTag = (f)=>{ const val=conf[f]; if(val===undefined) return '';
-    const lo=val<0.6; return `  [confidence ${(val*100).toFixed(0)}%${lo?' ⚠ low':''}]`; };
+  const c=R.contract, rc=R.receipt, ck=R.check, v=R.verdict;
+  const isDispute=v.type==='dispute';
+  const conds=(c.suspension_conditions||[]).join(', ') || 'none';
+  const conf=c.confidence||{};
+  const confTag=(f)=>{ const val=conf[f]; if(val===undefined) return ''; const lo=val<0.6; return `  [confidence ${(val*100).toFixed(0)}%${lo?' ⚠ low':''}]`; };
 
-  const bodies = [
+  const bodies=[
     `Laytime allowed: ${c.laytime_hours}h${confTag('laytime_hours')}\nRate: ${fmt(c.demurrage_rate_usd_per_day)}/day${confTag('demurrage_rate_usd_per_day')}\nSuspension clauses: ${conds}${confTag('suspension_conditions')}`,
     `In-port hours (AIS): ${ck.ais_hours}h\nBerthed then departed, verified against port log`,
     `Port log ${ck.sof_hours}h vs AIS ${ck.ais_hours}h\nDelta ${ck.delta_hours}h -> ${ck.consistent?'within tolerance, consistent':'over tolerance, CONFLICT'}`,
-    isDispute
-      ? `Halted: records inconsistent, cannot auto-settle`
+    isDispute ? `Halted: records inconsistent, cannot auto-settle`
       : `Gross ${rc.gross_duration_hours}h - excluded ${rc.excluded_hours}h -> counted ${rc.counted_laytime_hours}h\nvs allowed ${c.laytime_hours}h -> excess ${rc.excess_time_hours}h`,
-    isDispute
-      ? `Not settled. Routed to manual review.`
+    isDispute ? `Not settled. Routed to manual review.`
       : (v.type==='needs_review' ? `Paused for human review before settlement.`
         : (R.settlement ? `Attestation generated, submitted to escrow contract\n${R.settlement.chain}` : `No demurrage - final balance released`)),
   ];
 
-  for (let i=0;i<STEP_TITLES.length;i++){
-    const failHere = (isDispute && i===2);
+  for(let i=0;i<STEP_TITLES.length;i++){
+    const failHere=(isDispute && i===2);
     renderSteps(STEP_TITLES, i, failHere?2:-1);
-    if (fromCache){
-      document.getElementById('body-'+i).textContent = bodies[i];
-    } else {
-      await type(document.getElementById('body-'+i), bodies[i]);
-      await wait(220);
-    }
-    if (isDispute && i===2){
-      renderSteps(STEP_TITLES, 2, 2);
-      document.getElementById('body-2').textContent = bodies[2];
-      break;
-    }
-    if (i===3 && !isDispute) renderLaytime(R);
+    if(fromCache){ document.getElementById('body-'+i).textContent=bodies[i]; }
+    else { await type(document.getElementById('body-'+i), bodies[i]); await wait(220); }
+    if(isDispute && i===2){ renderSteps(STEP_TITLES, 2, 2); document.getElementById('body-2').textContent=bodies[2]; break; }
+    if(i===3 && !isDispute) renderLaytime(R);
   }
-  if (!isDispute) renderSteps(STEP_TITLES, STEP_TITLES.length, -1);
+  if(!isDispute) renderSteps(STEP_TITLES, STEP_TITLES.length, -1);
   renderResult(R);
-  if (fromCache){
-    const note=document.createElement('div');
-    note.className='cache-note';
+  if(fromCache){
+    const note=document.createElement('div'); note.className='cache-note';
     note.textContent='Served from cache — click Re-run to audit again.';
     document.getElementById('result').appendChild(note);
-  }
-  btn.disabled=false; btn.textContent='Re-run'; if(cpRun) cpRun.disabled=false; running=false;
+  } else if(R._edited){ toast('Re-audited the edited contract.','ok'); }
+  btn.disabled=false; btn.innerHTML=`${playSvg} Re-run`; if(cpRun) cpRun.disabled=false; running=false;
+  if(!editedContract) renderKPIs();
 }
 
+/* ---------------- Laytime ---------------- */
 function renderLaytime(R){
   const res=document.getElementById('result');
   const c=R.contract, rc=R.receipt, v=R.verdict;
   const laytime=c.laytime_hours, counted=rc.counted_laytime_hours, excluded=rc.excluded_hours;
-  const over = v.type==='demurrage'? rc.excess_time_hours : 0;
+  const over=v.type==='demurrage'? rc.excess_time_hours : 0;
   const total=Math.max(rc.gross_duration_hours, laytime+over);
   const scale=100/total;
   const wc=Math.min(counted,laytime)*scale, wover=over*scale, we=excluded*scale;
   const thr=(laytime/total)*100;
-  res.innerHTML = `<div class="laytime">
+  res.innerHTML=`<div class="laytime">
+    <h3>Laytime breakdown</h3>
     <div class="bar">
       <div class="seg seg-counted" id="s-counted" style="left:0;width:0%">${counted}h counted</div>
       <div class="seg seg-over" id="s-over" style="left:${wc}%;width:0%">+${over}h</div>
@@ -631,17 +1245,17 @@ function renderLaytime(R){
       <div class="threshold ${thr>78?'near-right':''}" style="left:${thr}%"></div>
     </div>
     <div class="barkey">
-      <span><i class="sw" style="background:var(--teal-soft);border:1px solid #A8D9CB"></i>Counted laytime</span>
-      <span><i class="sw" style="background:var(--amber-soft);border:1px solid #EBC79B"></i>Excess (demurrage)</span>
-      <span><i class="sw" style="background:repeating-linear-gradient(45deg,#D3DEE8,#D3DEE8 3px,transparent 3px,transparent 6px)"></i>Excluded time</span>
+      <span><i class="sw" style="background:var(--teal-soft);border:1px solid var(--teal)"></i>Counted laytime</span>
+      <span><i class="sw" style="background:var(--amber-soft);border:1px solid var(--amber)"></i>Excess (demurrage)</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(45deg,var(--line-strong),var(--line-strong) 3px,transparent 3px,transparent 6px)"></i>Excluded time</span>
     </div></div>`;
   requestAnimationFrame(()=>{
-    document.getElementById('s-counted').style.width=wc+'%';
-    document.getElementById('s-over').style.width=wover+'%';
-    document.getElementById('s-excl').style.width=we+'%';
+    const a=document.getElementById('s-counted'), b=document.getElementById('s-over'), w=document.getElementById('s-excl');
+    if(a) a.style.width=wc+'%'; if(b) b.style.width=wover+'%'; if(w) w.style.width=we+'%';
   });
 }
 
+/* ---------------- Breakdown ---------------- */
 function calcBreakdown(R){
   const c=R.contract, rc=R.receipt, v=R.verdict;
   const conds=(c.suspension_conditions||[]).join(', ');
@@ -654,53 +1268,64 @@ function calcBreakdown(R){
     ['× Daily rate', `${fmt(c.demurrage_rate_usd_per_day)}/day`, `${rc.excess_time_hours}h = ${(rc.excess_time_hours/24).toFixed(3)} days`],
     ['= Demurrage', fmt(v.amount_usd||rc.total_penalty_usd), 'excess ÷ 24 × rate'],
   ];
-  const body=rows.map(r=>`<div class="bd-row">
-    <span class="bd-label">${r[0]}</span>
-    <span class="bd-val">${r[1]}</span>
-    <span class="bd-note">${r[2]}</span></div>`).join('');
-  return `<details class="breakdown"><summary>Show calculation breakdown</summary>
-    <div class="bd">${body}</div></details>`;
+  const body=rows.map(r=>`<div class="bd-row"><span class="bd-label">${r[0]}</span><span class="bd-val">${r[1]}</span><span class="bd-note">${r[2]}</span></div>`).join('');
+  return `<details class="breakdown"><summary>Calculation breakdown</summary><div class="bd">${body}</div></details>`;
+}
+
+/* ---------------- Verdict ---------------- */
+function countUp(el, target){
+  const dur=700, start=performance.now();
+  function tick(now){ const t=Math.min(1,(now-start)/dur); const eased=1-Math.pow(1-t,3);
+    el.textContent='$'+Math.round(target*eased).toLocaleString('en-US');
+    if(t<1) requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
 }
 
 function renderResult(R){
   const res=document.getElementById('result');
-  const v=R.verdict, rc=R.receipt, c=R.contract;
+  const v=R.verdict, rc=R.receipt;
   const block=document.createElement('div');
-  if (v.type==='dispute'){
+  if(v.type==='dispute'){
     block.className='verdict dispute';
-    block.innerHTML=`<div class="vhead">⚠ Data dispute — auto-settlement blocked</div>
-      <div class="amt dispute">HOLD</div>
+    block.innerHTML=`<div class="vhead">⚠ Data dispute — auto-settlement blocked</div><div class="amt dispute">HOLD</div>
       <div class="expl">${v.reason}. Funds are not moved automatically; the case is routed to manual review to prevent settlement on falsified port records.</div>`;
-  } else if (v.type==='needs_review'){
+  } else if(v.type==='needs_review'){
     block.className='verdict review';
     block.innerHTML=`<div class="vhead">⏸ Human review required — not auto-settled</div>
-      <div class="amt review">${fmt(v.amount_usd)}</div>
+      <div class="amt review" data-animate="${v.amount_usd}">${fmt(v.amount_usd)}</div>
       <div class="expl">The agent computed a settlement but paused it for a human to confirm:
         <ul class="review-list">${(v.review_reasons||[]).map(r=>`<li>${r}</li>`).join('')}</ul>
-        High-risk cases never settle automatically — a reviewer approves before funds move.</div>
-      ${calcBreakdown(R)}`;
-  } else if (v.type==='demurrage'){
+        High-risk cases never settle automatically — a reviewer approves before funds move.</div>${calcBreakdown(R)}`;
+  } else if(v.type==='demurrage'){
     block.className='verdict demurrage';
     block.innerHTML=`<div class="vhead">Demurrage — auto-deducted</div>
-      <div class="amt demurrage">${fmt(v.amount_usd)}</div>
+      <div class="amt demurrage" data-animate="${v.amount_usd}">${fmt(v.amount_usd)}</div>
       <div class="expl">Excess ${v.excess_hours}h. Deducted ${fmt(v.penalty)} from the charterer's deposit to the shipowner (capped at deposit ${fmt(R.escrow.deposit)}). Freight ${fmt(v.freight_to_owner)} paid in full to owner; remaining deposit ${fmt(v.refund_to_charterer)} refunded to charterer.</div>
-      ${calcBreakdown(R)}
-      ${txRow(R)}`;
+      ${calcBreakdown(R)}${txRow(R)}`;
   } else {
     block.className='verdict none';
-    block.innerHTML=`<div class="vhead">No demurrage — balance released</div>
-      <div class="amt none">$0</div>
-      <div class="expl">After deducting ${rc.excluded_hours}h of contractual suspension time, counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${c.laytime_hours}h. No penalty; deposit refunded in full.</div>
-      ${txRow(R)}`;
+    block.innerHTML=`<div class="vhead">No demurrage — balance released</div><div class="amt none">$0</div>
+      <div class="expl">After deducting ${rc.excluded_hours}h of contractual suspension time, counted laytime ${rc.counted_laytime_hours}h stays within the allowed ${R.contract.laytime_hours}h. No penalty; deposit refunded in full.</div>${txRow(R)}`;
   }
   res.appendChild(block);
+  const amtEl=block.querySelector('.amt[data-animate]');
+  if(amtEl) countUp(amtEl, parseFloat(amtEl.dataset.animate));
 }
+
 function txRow(R){
   if(!R.settlement) return '';
-  const s=R.settlement;
-  const ev=s.evidence_hash || '';
+  const s=R.settlement, ev=s.evidence_hash||'';
   return `<div class="txrow">Evidence hash <code>${ev.slice(0,22)}…</code> · ${s.chain}${s.mode==='mock'?' · (mock tx)':''}</div>`;
 }
+
+/* ---------------- Keyboard ---------------- */
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='/' && document.activeElement!==document.getElementById('search') && document.body.getAttribute('data-view')==='demo'){
+    e.preventDefault(); document.getElementById('search').focus();
+  }
+  if(e.key==='Escape' && detail.style.display!=='none' && !running){ backToMap(); }
+});
+
 boot();
 </script>
 </body>
