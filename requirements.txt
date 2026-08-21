@@ -1,5 +1,6 @@
 # Core (required to run the UI + API)
 flask>=2.0
+python-dotenv>=1.0   # loads .env so API keys / RPC config take effect without exporting env vars
 
 # Optional — enable real contract parsing (local only; not needed on Vercel).
 # Uncomment to install, then run `ollama pull qwen2.5`.

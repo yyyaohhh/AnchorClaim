@@ -14,12 +14,15 @@ import json
 import hashlib
 import tempfile
 from urllib.parse import parse_qs, urlencode
+from dotenv import load_dotenv
 from flask import Flask, jsonify, send_from_directory, request
 
 # make agent modules importable
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "agent"))
+
+load_dotenv(os.path.join(ROOT, ".env"))  # picks up API keys / RPC config before the agent modules read them
 
 from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402

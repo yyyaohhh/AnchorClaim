@@ -59,8 +59,9 @@ if __name__ == "__main__":
     ais_port_log = {
         "vessel_name": "MV Ocean Star",
         "arrival_anchorage": "2026/08/10 08:00:00",
+        "nor_tendered": "2026/08/10 09:00:00",
         "berthing_time": "2026/08/10 12:00:00",
-        "departure_time": "2026/08/14 12:00:00",   # berthing to departure = 96 hours
+        "departure_time": "2026/08/14 12:00:00",   # NOR to departure = 99 hours
     }
     # a 6-hour bad-weather stoppage during cargo ops (bad weather is excluded per the contract)
     suspension_events = [

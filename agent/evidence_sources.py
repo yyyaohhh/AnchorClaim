@@ -2,15 +2,19 @@
 Multi-source evidence cross-validation.
 
 The audit does not trust any single record. It corroborates the port log against
-several independent sources, each from a different party so they cannot easily
-collude to falsify a claim:
+six independent sources, each from a different party so they cannot easily collude
+to falsify a claim:
 
-  1. AIS            — vessel self-reported position (already in the pipeline)
+  1. AIS            — independent in-port hours vs. the submitted port log (SoF)
   2. Weather        — validates that claimed "bad weather" suspensions are real
   3. Satellite      — confirms a vessel was actually berthed (counters AIS spoofing)
   4. Port Community — official berth/departure timestamps from the port system
   5. NOR            — the Notice of Readiness timestamp that starts laytime
   6. News/notices   — corroborates claimed strikes or port closures
+
+All six feed into the same step2b_reason_evidence.py vote — a large AIS/SoF gap is
+just one more claim the agents weigh against the rest of the evidence, not a separate
+hardcoded check that bypasses reasoning.
 
 Each source is real-API-ready: if the relevant API key is configured it calls the
 live service, otherwise it returns a deterministic mock so the demo runs offline.
@@ -20,7 +24,7 @@ This mirrors the rest of the project (LLM and chain also have mock fallbacks).
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 
@@ -39,6 +43,19 @@ KNOWN_NOTICES = [
 
 def _parse(ts: str) -> datetime:
     return datetime.strptime(ts, TIME_FORMAT)
+
+
+# ---------------------------------------------------------------------------
+# 1. AIS — independent in-port hours vs. the submitted port log (SoF)
+# ---------------------------------------------------------------------------
+def verify_ais(sof_hours: float, ais_hours: float, tolerance_hours: float = 2.0) -> dict:
+    """Compare the submitted port-log (SoF) duration against independent AIS in-port
+    hours. A large, unexplained gap is the strongest signal of a falsified log — but
+    it's just one source among six, weighed by the agent vote rather than an
+    automatic hard stop."""
+    delta = abs(sof_hours - ais_hours)
+    return {"source": "ais", "sof_hours": round(sof_hours, 2), "ais_hours": ais_hours,
+            "delta_hours": round(delta, 2), "ok": delta <= tolerance_hours}
 
 
 # ---------------------------------------------------------------------------
@@ -82,16 +99,20 @@ def _weather_api(port, start, end):  # pragma: no cover - real integration stub
 # ---------------------------------------------------------------------------
 # 3. Satellite — confirm the vessel was physically berthed (counters AIS spoofing)
 # ---------------------------------------------------------------------------
-def verify_satellite(imo: str, port: str, berthing_time: str, departure_time: str) -> dict:
+def verify_satellite(imo: str, port: str, berthing_time: str, departure_time: str,
+                      sof_hours: float | None = None, ais_hours: float | None = None) -> dict:
     """Confirm a vessel actually occupied a berth during the claimed window.
-    Live: optical/SAR imagery provider. Mock: confirms known good voyages."""
+    Live: optical/SAR imagery provider. Mock: a large AIS/SoF gap means imagery
+    wouldn't show continuous occupancy matching the submitted timeline either."""
     use_live = bool(os.getenv("SATELLITE_API_KEY"))
     if use_live:
         confirmed = _satellite_api(imo, port, berthing_time, departure_time)  # pragma: no cover
+    elif sof_hours is not None and ais_hours is not None:
+        confirmed = abs(sof_hours - ais_hours) <= 2.0
     else:
-        confirmed = True  # sample vessels are corroborated by imagery in mock mode
+        confirmed = True
     return {"source": "satellite", "berth_confirmed": confirmed,
-            "note": "SAR/optical imagery confirms occupancy" if confirmed else "no vessel seen at berth",
+            "note": "SAR/optical imagery confirms occupancy" if confirmed else "imagery does not match the claimed occupancy window",
             "ok": confirmed, "mode": "live" if use_live else "mock"}
 
 
@@ -102,17 +123,23 @@ def _satellite_api(imo, port, start, end):  # pragma: no cover
 # ---------------------------------------------------------------------------
 # 4. Port Community System — official berth/departure timestamps
 # ---------------------------------------------------------------------------
-def verify_port_community(port: str, ais_port_log: dict) -> dict:
+def verify_port_community(port: str, ais_port_log: dict,
+                           sof_hours: float | None = None, ais_hours: float | None = None) -> dict:
     """Compare the submitted port log against the official port system record.
-    Live: a Port Community System API (e.g. Portbase, PortNet). Mock: derives an
-    official record close to the log with a small realistic delta."""
+    Live: a Port Community System API (e.g. Portbase, PortNet). Mock: the official
+    record reflects the independent AIS ground truth rather than echoing the
+    submitted log, so a falsified log actually shows up as a delta here too."""
     use_live = bool(os.getenv("PCS_API_KEY"))
     berth = ais_port_log.get("berthing_time")
     depart = ais_port_log.get("departure_time")
     if use_live:
         official = _pcs_api(port, berth, depart)  # pragma: no cover
+    elif sof_hours is not None and ais_hours is not None:
+        drift_hours = ais_hours - sof_hours
+        official_departure = _parse(depart) + timedelta(hours=drift_hours)
+        official = {"berthing_time": berth, "departure_time": official_departure.strftime(TIME_FORMAT)}
     else:
-        official = {"berthing_time": berth, "departure_time": depart}  # mock: matches
+        official = {"berthing_time": berth, "departure_time": depart}
     # delta in hours between submitted and official departure
     try:
         delta_h = abs((_parse(depart) - _parse(official["departure_time"])).total_seconds()) / 3600
@@ -178,18 +205,21 @@ def _news_api(port, event):  # pragma: no cover
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
-def gather_evidence(voyage: dict) -> dict:
+def gather_evidence(voyage: dict, sof_hours: float) -> dict:
     """Run all independent sources and summarise agreement.
     Returns per-source results plus flags for any unsupported suspension claims."""
     port = voyage.get("port", "")
     log = voyage.get("ais_port_log", {})
     susp = voyage.get("suspension_events")
+    ais_hours = voyage.get("ais_hours", sof_hours)
 
     sources = {
+        "ais": verify_ais(sof_hours, ais_hours),
         "weather": verify_weather(port, susp),
         "satellite": verify_satellite(voyage.get("imo", ""), port,
-                                      log.get("berthing_time"), log.get("departure_time")),
-        "port_community": verify_port_community(port, log),
+                                      log.get("berthing_time"), log.get("departure_time"),
+                                      sof_hours, ais_hours),
+        "port_community": verify_port_community(port, log, sof_hours, ais_hours),
         "nor": verify_nor(log),
         "news": verify_news(port, susp),
     }
@@ -219,7 +249,7 @@ if __name__ == "__main__":
     for vid, v in SAMPLE_VOYAGES.items():
         c = parse_contract(v["contract_text"])
         r = calculate_demurrage(c, v["ais_port_log"], v.get("suspension_events"))
-        ev = gather_evidence(v)
+        ev = gather_evidence(v, r["gross_duration_hours"])
         print("=" * 60)
         print(v["vessel"], "->", ev["sources_ok"], "/", ev["sources_total"], "sources ok")
         if ev["unsupported_claims"]:

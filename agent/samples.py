@@ -36,7 +36,8 @@ Time lost due to bad weather, strikes, port closures, or force majeure events sh
         ],
         "escrow": {"freight": 500000, "deposit": 100000},
         # AIS-derived in-port hours (would come from the collector); matches SoF here
-        "ais_hours": 96.0,
+        # (SoF now counts from NOR 09:00 to departure 08/14 12:00 = 99h)
+        "ais_hours": 99.0,
     },
 
     "0xVOYAGE_NORDWIND": {
@@ -92,16 +93,16 @@ Demurrage at USD 30000 per day or pro rata.
 EXCEPTIONS AND SUSPENSION:
 Time lost due to bad weather shall not count as laytime.
 """,
-        # 64h gross vs 48h laytime -> 16h excess, demurrage (signed, no dispute)
+        # 66h gross (NOR to departure) vs 48h laytime -> 18h excess, demurrage (signed, no dispute)
         "ais_port_log": {
             "vessel_name": "MV Delta Spirit",
             "arrival_anchorage": "2026/08/02 00:00:00",
             "nor_tendered": "2026/08/02 00:00:00",
             "berthing_time": "2026/08/02 02:00:00",
-            "departure_time": "2026/08/04 18:00:00",  # 64h gross
+            "departure_time": "2026/08/04 18:00:00",  # NOR to departure = 66h
         },
         "suspension_events": [],
         "escrow": {"freight": 480000, "deposit": 120000},
-        "ais_hours": 64.0,  # signed: AIS agrees with the port log
+        "ais_hours": 66.0,  # signed: AIS agrees with the port log (SoF now counts from NOR = 66h)
     },
 }
