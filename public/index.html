@@ -59,13 +59,25 @@
   /* Role color identity — shipowner (blue) vs charterer (warm copper) */
   body[data-view="demo"][data-role="charterer"],
   body[data-view="fleet"][data-role="charterer"]{
+    --bg:#FBF6EA; --bg-soft:#F3ECDD;
     --accent:#C2700D; --accent-strong:#9A5608; --accent-soft:#FBEFDC;
     --glow:rgba(194,112,13,.16); --wave:rgba(194,112,13,.30); --ship:#C2700D; --bathy:rgba(194,112,13,.16);
   }
+  body[data-view="demo"][data-role="charterer"]::before,
+  body[data-view="fleet"][data-role="charterer"]::before{
+    background:radial-gradient(1100px 540px at 90% -12%, var(--glow), transparent 60%),
+      radial-gradient(900px 540px at -10% 112%, rgba(194,112,13,.10), transparent 60%);
+  }
   body[data-view="demo"][data-theme="dark"][data-role="charterer"],
   body[data-view="fleet"][data-theme="dark"][data-role="charterer"]{
+    --bg:#0D0A06; --bg-soft:#141009;
     --accent:#F0A04B; --accent-strong:#FFC68A; --accent-soft:#2E200D;
     --glow:rgba(240,160,75,.18); --wave:rgba(240,160,75,.26); --ship:#F0A04B; --bathy:rgba(240,160,75,.14);
+  }
+  body[data-view="demo"][data-theme="dark"][data-role="charterer"]::before,
+  body[data-view="fleet"][data-theme="dark"][data-role="charterer"]::before{
+    background:radial-gradient(1100px 540px at 90% -12%, var(--glow), transparent 60%),
+      radial-gradient(900px 540px at -10% 112%, rgba(240,160,75,.12), transparent 60%);
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
