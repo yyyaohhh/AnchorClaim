@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, "agent"))
 
 from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402
+from fleet import fleet_overview              # noqa: E402
 
 FRONTEND = os.path.join(ROOT, "frontend")
 app = Flask(__name__, static_folder=FRONTEND, static_url_path="")
@@ -184,6 +185,13 @@ def audit_edited(voyage_id):
         return jsonify(result)
     except Exception as e:  # noqa: BLE001
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/fleet")
+@app.route("/fleet")
+def fleet():
+    """Fleet-scale roll-up: dozens of voyages summarised into status + totals."""
+    return jsonify(fleet_overview())
 
 
 @app.route("/api/cache", methods=["DELETE"])

@@ -73,11 +73,14 @@
   .shell{max-width:1200px;margin:0 auto;padding:0 28px 72px}
 
   /* view switching */
-  #demo{display:none}
+  #demo,#fleetView{display:none}
   body[data-view="demo"] #demo{display:block}
+  body[data-view="fleet"] #fleetView{display:block}
   body[data-view="demo"] #landing{display:none}
-  body[data-view="landing"] .only-demo{display:none !important}
-  body[data-view="demo"] .only-landing{display:none !important}
+  body[data-view="fleet"] #landing{display:none}
+  body[data-view="landing"] .only-demo,body[data-view="landing"] .only-fleet{display:none !important}
+  body[data-view="demo"] .only-landing,body[data-view="demo"] .only-fleet{display:none !important}
+  body[data-view="fleet"] .only-landing,body[data-view="fleet"] .only-demo{display:none !important}
 
   /* ================= App bar ================= */
   .topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:16px;height:64px;
@@ -481,6 +484,52 @@
   .foot .brand-row{display:flex;align-items:center;gap:8px}
   .foot .brand-row svg{width:14px;height:14px;color:var(--accent)}
 
+  .cta-actions{display:flex;gap:12px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+  .cta-band .btn-ghost{color:#fff;border-color:rgba(255,255,255,.45);background:rgba(255,255,255,.08);box-shadow:none}
+  .cta-band .btn-ghost:hover{border-color:#fff;color:#fff}
+
+  /* ================= Fleet overview (scale) ================= */
+  .fleet-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:36px 0 4px}
+  .fleet-head h1{font-family:var(--display);font-size:clamp(28px,3.6vw,44px);font-weight:800;letter-spacing:-1px;color:var(--ink);line-height:1.06;margin-top:12px}
+  .fleet-head .lead{color:var(--muted);max-width:580px;margin-top:12px;line-height:1.62}
+  .fleet-runline{margin-top:22px;display:flex;align-items:center;gap:14px;font:550 12.5px var(--mono);color:var(--muted)}
+  .fleet-runline b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums}
+  .fleet-runbar{flex:1;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+  .fleet-runbar>span{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--teal))}
+  .fleet-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin:24px 0 22px}
+  @media(max-width:980px){.fleet-kpis{grid-template-columns:repeat(2,1fr)}}
+  .fleet-kpis .kpi{box-shadow:var(--shadow-sm)}
+  .fleet-split{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
+  @media(max-width:980px){.fleet-split{grid-template-columns:1fr}}
+  .board{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow-sm)}
+  .board-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .board-head h3{font:650 15px var(--sans);color:var(--ink)}
+  .tl-legend{display:flex;align-items:center;gap:16px;font:550 11.5px var(--mono);color:var(--muted);flex-wrap:wrap}
+  .tl-legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+  .traffic{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+  .tchip{border:1px solid var(--line);border-left:4px solid var(--faint);border-radius:11px;padding:11px 13px;background:var(--surface-2);
+    display:flex;flex-direction:column;gap:6px;transition:opacity .3s ease,transform .3s ease,box-shadow .2s,border-color .2s;
+    opacity:0;transform:translateY(6px)}
+  .tchip.in{opacity:1;transform:none}
+  .tchip:hover{box-shadow:var(--shadow);border-color:var(--line-strong)}
+  .tchip.demurrage{border-left-color:var(--red)} .tchip.dispute{border-left-color:var(--gold)} .tchip.none{border-left-color:var(--teal)}
+  .tchip .tc-tag{font:650 10px var(--sans);letter-spacing:.7px;text-transform:uppercase}
+  .tchip.demurrage .tc-tag{color:var(--red)} .tchip.dispute .tc-tag{color:var(--gold)} .tchip.none .tc-tag{color:var(--teal)}
+  .tchip .tc-vessel{font:650 13.5px var(--sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tchip .tc-port{font:500 11px var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tchip .tc-amt{font:700 13px var(--mono);font-variant-numeric:tabular-nums}
+  .tchip.demurrage .tc-amt{color:var(--red)} .tchip.dispute .tc-amt{color:var(--gold)} .tchip.none .tc-amt{color:var(--teal)}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow-sm)}
+  .panel + .panel{margin-top:16px}
+  .panel h4{font:650 14px var(--sans);color:var(--ink);margin-bottom:14px}
+  .dist-row{display:flex;align-items:center;gap:10px;font:550 12px var(--mono);color:var(--muted);margin:12px 0}
+  .dist-row .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .dist-row .dl{width:88px;flex:0 0 auto}
+  .dist-bar{flex:1;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+  .dist-bar>span{display:block;height:100%;border-radius:99px}
+  .dist-row b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:650}
+  .fleet-foot{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font:500 12px var(--mono);color:var(--faint);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
   /* Toasts */
   .toasts{position:fixed;right:22px;bottom:22px;z-index:100;display:flex;flex-direction:column;gap:10px}
   .toast{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:12px 16px;font:600 13px var(--sans);color:var(--ink);box-shadow:var(--shadow-lg);min-width:230px;animation:toast-in .3s cubic-bezier(.2,.8,.2,1)}
@@ -513,11 +562,24 @@
     <div class="topbar-right">
       <div class="clock only-demo" title="Coordinated Universal Time"><span>UTC</span><b id="utcClock">--:--:--</b></div>
       <div class="net-status only-demo" id="netStatus"><span class="pulse-dot"></span><span id="netText">Connecting…</span></div>
+      <button class="btn btn-ghost btn-sm only-landing" data-goto="fleet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        Fleet overview
+      </button>
       <button class="btn btn-primary btn-sm only-landing" data-goto="demo">Try the demo</button>
+      <button class="btn btn-ghost btn-sm only-demo" data-goto="fleet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        Fleet overview
+      </button>
       <button class="btn btn-ghost btn-sm only-demo" data-goto="landing">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
         Overview
       </button>
+      <button class="btn btn-ghost btn-sm only-fleet" data-goto="landing">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Home
+      </button>
+      <button class="btn btn-primary btn-sm only-fleet" data-goto="demo">Open voyage audit</button>
       <button class="icon-btn" id="themeToggle" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
@@ -537,6 +599,10 @@
             <button class="btn btn-primary" data-goto="demo">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               Try the demo
+            </button>
+            <button class="btn btn-ghost" data-goto="fleet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+              Fleet overview
             </button>
             <button class="btn btn-ghost" id="exploreBtn">Explore features</button>
           </div>
@@ -561,7 +627,7 @@
 
     <section class="stat-band">
       <div class="stat reveal"><div class="stat-num" data-count="5">0</div><div class="stat-label">pipeline stages, fully instrumented</div></div>
-      <div class="stat reveal"><div class="stat-num" data-count="3">0</div><div class="stat-label">sample voyages across Asia-Pacific</div></div>
+      <div class="stat reveal"><div class="stat-num" data-count="42">0</div><div class="stat-label">voyages in the auto-audited fleet</div></div>
       <div class="stat reveal"><div class="stat-num" data-count="250" data-prefix="$" data-suffix="k">$0</div><div class="stat-label">auto-settle ceiling before human review</div></div>
       <div class="stat reveal"><div class="stat-num" data-count="100" data-suffix="%">0</div><div class="stat-label">on-chain &amp; verifiable</div></div>
     </section>
@@ -620,12 +686,18 @@
     </section>
 
     <section class="cta-band reveal">
-      <h2>See it on real sample voyages.</h2>
-      <p>Audit MV Ocean Star, MV Nord Wind and MV Delta Spirit — demurrage, no-demurrage, and a fraud dispute — right in the browser.</p>
-      <button class="btn btn-primary" data-goto="demo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Try the demo
-      </button>
+      <h2>From one claim to a whole book.</h2>
+      <p>Watch the agent run a live fleet of 42 voyages end-to-end — demurrage, cleared and disputed — with exposure rolled up in seconds.</p>
+      <div class="cta-actions">
+        <button class="btn btn-primary" data-goto="fleet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Fleet overview
+        </button>
+        <button class="btn btn-ghost" data-goto="demo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Try the demo
+        </button>
+      </div>
     </section>
 
     <footer class="land-foot">
@@ -701,6 +773,64 @@
     </footer>
   </div>
 
+  <!-- FLEET OVERVIEW -->
+  <div id="fleetView">
+    <div class="fleet-head">
+      <div>
+        <span class="eyebrow">Fleet command center</span>
+        <h1>One fleet. Every dollar accounted for.</h1>
+        <p class="lead">The agent runs the whole book — parse, evidence, calculate, settle — and flags every voyage by result, with exposure rolled up live.</p>
+      </div>
+      <button class="btn btn-primary" id="fleetRerun">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        Re-run fleet
+      </button>
+    </div>
+
+    <div class="fleet-runline">
+      <span id="fleetRunLabel">Idle</span>
+      <div class="fleet-runbar"><span id="fleetRunBar"></span></div>
+      <b id="fleetRunCount">0 / 0</b>
+    </div>
+
+    <section class="fleet-kpis">
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--red);background:var(--red-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag">Demurrage recovered</span></div><div class="k-value" id="fExposure" style="color:var(--red)">$0</div><div class="k-sub">auto-deducted to owners</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--gold);background:var(--gold-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span class="k-tag">At risk (disputed)</span></div><div class="k-value" id="fAtRisk" style="color:var(--gold)">$0</div><div class="k-sub">held for review</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--accent);background:var(--accent-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/></svg></span><span class="k-tag">Voyages</span></div><div class="k-value" id="fCount">0</div><div class="k-sub">auto-audited</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--teal);background:var(--teal-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span><span class="k-tag">Escrow locked</span></div><div class="k-value" id="fEscrow">$0</div><div class="k-sub">total deposits</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--amber-deep);background:var(--amber-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="k-tag">Disputes</span></div><div class="k-value" id="fDisputes">0</div><div class="k-sub">blocked auto-settle</div></div>
+    </section>
+
+    <div class="fleet-split">
+      <section class="board">
+        <div class="board-head">
+          <h3>Live fleet status</h3>
+          <div class="tl-legend">
+            <span><i style="background:var(--red)"></i>Demurrage</span>
+            <span><i style="background:var(--gold)"></i>Dispute</span>
+            <span><i style="background:var(--teal)"></i>Clear</span>
+          </div>
+        </div>
+        <div class="traffic" id="traffic"></div>
+      </section>
+      <aside>
+        <div class="panel">
+          <h4>Result distribution</h4>
+          <div id="fDist"></div>
+        </div>
+        <div class="panel">
+          <h4>Exposure by port</h4>
+          <div id="fPorts"></div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="fleet-foot">
+      <span>AnchorClaim fleet roll-up · deterministic simulation of a production book</span>
+      <span>open the demo to drill into a single voyage</span>
+    </footer>
+  </div>
+
 </div>
 <div class="toasts" id="toasts"></div>
 
@@ -738,8 +868,23 @@ function showLanding(){
   document.body.setAttribute('data-view','landing');
   window.scrollTo(0,0);
 }
+function showFleet(){
+  document.body.setAttribute('data-view','fleet');
+  window.scrollTo(0,0);
+  if(!FLEET){
+    document.getElementById('fleetRunLabel').textContent='Fetching fleet…';
+    loadFleet().then(playFleet).catch(()=>{
+      document.getElementById('fleetRunLabel').textContent='Fleet unavailable';
+      document.getElementById('traffic').innerHTML=`<div class="idle" style="display:block">Cannot reach the Python backend.<br><br>Start it first:<br><code>cd backend &amp;&amp; python server.py</code></div>`;
+      toast('Could not load fleet.','err');
+    });
+  } else {
+    playFleet();
+  }
+}
 document.querySelectorAll('[data-goto="demo"]').forEach(b=>b.addEventListener('click', showDemo));
 document.querySelectorAll('[data-goto="landing"]').forEach(b=>b.addEventListener('click', showLanding));
+document.querySelectorAll('[data-goto="fleet"]').forEach(b=>b.addEventListener('click', showFleet));
 document.getElementById('exploreBtn').addEventListener('click', ()=>{
   document.getElementById('features').scrollIntoView({behavior:'smooth', block:'start'});
 });
@@ -981,6 +1126,87 @@ function renderStatusStrip(){
   document.getElementById('ssLegend').innerHTML=legend;
   document.getElementById('ssCount').textContent=Object.keys(DATA).length+' vessels';
 }
+
+/* ---------------- Fleet overview ---------------- */
+let FLEET = null;
+let fleetTimers = [];
+
+async function loadFleet(){
+  const r = await fetch(API + '/api/fleet');
+  if(!r.ok) throw new Error('fleet '+r.status);
+  FLEET = await r.json();
+  return FLEET;
+}
+
+function animateVal(el, target, formatter, dur){
+  const start = performance.now();
+  function tick(now){
+    const t = Math.min(1, (now - start) / dur);
+    const e = 1 - Math.pow(1 - t, 3);
+    el.textContent = formatter(target * e);
+    if(t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function renderFleetOverview(F){
+  animateVal(document.getElementById('fExposure'), F.total_exposure_usd, v=>fmt(v), 900);
+  animateVal(document.getElementById('fAtRisk'), F.total_at_risk_usd, v=>fmt(v), 900);
+  animateVal(document.getElementById('fEscrow'), F.total_escrow_usd, v=>fmt(v), 900);
+  document.getElementById('fCount').textContent = F.total_voyages;
+  document.getElementById('fDisputes').textContent = F.disputes;
+
+  const dist = document.getElementById('fDist');
+  dist.innerHTML = '';
+  [['demurrage','Demurrage','var(--red)'],['none','Clear','var(--teal)'],['dispute','Dispute','var(--gold)']].forEach(([k,lbl,c])=>{
+    const n = F.status_counts[k] || 0;
+    const pct = F.total_voyages ? Math.round(n/F.total_voyages*100) : 0;
+    dist.insertAdjacentHTML('beforeend', `<div class="dist-row"><span class="sw" style="background:${c}"></span><span class="dl">${lbl}</span><div class="dist-bar"><span style="width:${pct}%;background:${c}"></span></div><b>${n}</b></div>`);
+  });
+
+  const ports = document.getElementById('fPorts');
+  ports.innerHTML = '';
+  const maxExp = Math.max(1, ...F.by_port.map(p=>p.exposure||0));
+  F.by_port.forEach(p=>{
+    const w = Math.round((p.exposure||0)/maxExp*100);
+    ports.insertAdjacentHTML('beforeend', `<div class="dist-row"><span class="sw" style="background:var(--line-strong)"></span><span class="dl">${p.port.replace('Port of ','').replace('Port ','')}</span><div class="dist-bar"><span style="width:${w}%;background:var(--accent)"></span></div><b>${p.count}</b></div>`);
+  });
+
+  const tr = document.getElementById('traffic');
+  tr.innerHTML = '';
+  F.voyages.forEach(v=>{
+    const lbl = v.status==='demurrage' ? 'Demurrage' : v.status==='dispute' ? 'Dispute' : 'Clear';
+    const amt = v.status==='demurrage' ? fmt(v.amount_usd) : v.status==='dispute' ? (v.at_risk_usd>0 ? 'Hold '+fmt(v.at_risk_usd) : 'Hold') : 'Clear';
+    const el = document.createElement('div');
+    el.className = 'tchip '+v.status;
+    el.innerHTML = `<span class="tc-tag">${lbl}</span><span class="tc-vessel">${v.vessel}</span><span class="tc-port">${v.port} · ${v.imo}</span><span class="tc-amt">${amt}</span>`;
+    tr.appendChild(el);
+  });
+}
+
+function playFleet(){
+  if(!FLEET) return;
+  fleetTimers.forEach(clearTimeout); fleetTimers=[];
+  renderFleetOverview(FLEET);
+  const chips = document.querySelectorAll('#traffic .tchip');
+  const total = chips.length;
+  const label = document.getElementById('fleetRunLabel');
+  const bar = document.getElementById('fleetRunBar');
+  const count = document.getElementById('fleetRunCount');
+  label.textContent = 'Auditing fleet…';
+  bar.style.width = '0%';
+  count.textContent = '0 / '+total;
+  chips.forEach((c,i)=>{
+    fleetTimers.push(setTimeout(()=>{
+      c.classList.add('in');
+      const done = i+1;
+      bar.style.width = (done/total*100)+'%';
+      count.textContent = done+' / '+total;
+      if(done===total){ label.textContent = 'Fleet audited · '+fmt(FLEET.total_exposure_usd)+' exposure'; }
+    }, 50 + i*16));
+  });
+}
+document.getElementById('fleetRerun').addEventListener('click', playFleet);
 
 /* ---------------- Toasts ---------------- */
 function toast(msg, type='info'){
