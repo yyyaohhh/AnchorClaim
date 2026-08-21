@@ -49,6 +49,9 @@ parse contract  ->  calculate demurrage  ->  settle on-chain
   with a deterministic fallback so the pipeline still works offline. Each source is
   real-API-ready with an offline mock fallback.
 - **Fleet search** — filter the fleet by vessel name, IMO number or port as you type.
+- **Q&A agent** — a chat assistant that answers questions about the project and about
+  blockchain. It connects to any OpenAI-compatible model; you supply the API key and model
+  name (see [QnA Agent](#qna-agent-project--blockchain-assistant)).
 
 ## Run the UI
 
@@ -68,6 +71,50 @@ fallbacks so the full pipeline works out of the box.
 python agent/run_pipeline.py         # single voyage, end to end
 python agent/audit_pipeline.py       # all three sample voyages
 ```
+
+## QnA Agent (project & blockchain assistant)
+
+A floating **"Ask the agent"** chat is available on every screen. It answers questions about
+AnchorClaim (demurrage, AIS cross-checking, evidence, escrow settlement, disputes, the fleet
+roll-up) and about blockchain concepts.
+
+It connects to **any OpenAI-compatible** chat-completions endpoint — the provider and model are
+up to you. Open the chat, click the gear (⚙) and set:
+
+| Field | Example |
+|---|---|
+| API base URL | `https://api.openai.com/v1` · `https://api.deepseek.com` · `https://openrouter.ai/api/v1` · `http://localhost:11434/v1` |
+| API key | `sk-...` (leave blank for a local Ollama; pass a dummy value if the provider ignores it) |
+| Model | `gpt-4o-mini` · `deepseek-chat` · `qwen2.5` |
+
+```bash
+# OpenAI
+base URL:  https://api.openai.com/v1
+model:     gpt-4o-mini
+
+# DeepSeek
+base URL:  https://api.deepseek.com
+model:     deepseek-chat
+
+# Local Ollama (OpenAI-compatible, no key needed)
+base URL:  http://localhost:11434/v1
+model:     qwen2.5        # after: ollama pull qwen2.5
+```
+
+The three settings are stored in your browser (localStorage) only — they are never written to the
+server. You can also provision them as environment variables instead of typing them in the UI;
+environment values are used when the matching UI field is empty:
+
+```bash
+export ANCHORCLAIM_QNA_BASE_URL="https://api.deepseek.com"
+export ANCHORCLAIM_QNA_API_KEY="sk-..."
+export ANCHORCLAIM_QNA_MODEL="deepseek-chat"
+python backend/server.py
+```
+
+With nothing configured, the agent answers from a small built-in offline knowledge base (labelled
+"offline"), so the widget works out of the box. The endpoint is `POST /api/qna` with a
+`{messages: [{role, content}, ...], base_url?, api_key?, model?}` body.
 
 ## Enable real parsing and on-chain settlement (optional)
 
@@ -89,6 +136,8 @@ agent/
   step2_calculate.py        # demurrage with suspension deduction + AIS cross-check
   step3_settle_onchain.py   # on-chain settlement via web3
   audit_pipeline.py         # full pipeline -> structured result
+  qna_agent.py              # Q&A agent (any OpenAI-compatible endpoint + offline fallback)
+  fleet.py                  # fleet-scale overview generation
   samples.py                # sample voyages
 backend/
   server.py                 # Flask API, also serves the UI

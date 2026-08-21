@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(ROOT, "agent"))
 from audit_pipeline import audit_voyage       # noqa: E402
 from samples import SAMPLE_VOYAGES            # noqa: E402
 from fleet import fleet_overview, build_fleet, PORTS as PORT_COORDS  # noqa: E402
+from qna_agent import ask_question            # noqa: E402
 
 FLEET_VOYAGES = {v["id"]: v for v in build_fleet()}
 ALL_VOYAGES = {**SAMPLE_VOYAGES, **FLEET_VOYAGES}
@@ -209,6 +210,33 @@ def audit_edited(voyage_id):
 def fleet():
     """Fleet-scale roll-up: dozens of voyages summarised into status + totals."""
     return jsonify(fleet_overview())
+
+
+@app.route("/api/qna", methods=["POST"])
+def qna():
+    """Q&A agent: answer questions about the project and blockchain.
+
+    Body: {messages: [{role, content}], base_url?, api_key?, model?}
+    The last message is the question; earlier messages form the conversation history.
+    """
+    body = request.get_json(silent=True) or {}
+    messages = body.get("messages") or []
+    if not isinstance(messages, list) or not messages:
+        return jsonify({"error": "messages required"}), 400
+    question = (messages[-1].get("content") or "").strip()
+    if not question:
+        return jsonify({"error": "question required"}), 400
+    try:
+        reply = ask_question(
+            question=question,
+            history=messages[:-1],
+            base_url=body.get("base_url"),
+            api_key=body.get("api_key"),
+            model=body.get("model"),
+        )
+        return jsonify({"reply": reply})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/cache", methods=["DELETE"])

@@ -543,6 +543,68 @@
   @keyframes toast-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   @keyframes toast-out{to{opacity:0;transform:translateY(8px)}}
 
+  /* QnA Agent */
+  .qna-fab{position:fixed;right:22px;bottom:22px;z-index:90;display:inline-flex;align-items:center;gap:9px;
+    background:var(--accent);color:#fff;border:none;border-radius:999px;padding:13px 18px;cursor:pointer;
+    font:700 14px var(--sans);box-shadow:var(--shadow-lg);transition:transform .15s,filter .15s}
+  .qna-fab:hover{transform:translateY(-2px);filter:brightness(1.06)}
+  .qna-fab svg{width:17px;height:17px}
+  .qna-panel{position:fixed;right:22px;bottom:84px;z-index:95;width:min(400px,calc(100vw - 32px));
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);
+    display:flex;flex-direction:column;overflow:hidden;transform-origin:bottom right;
+    opacity:0;transform:translateY(14px) scale(.97);pointer-events:none;transition:opacity .2s,transform .2s}
+  .qna-panel.open{opacity:1;transform:none;pointer-events:auto}
+  .qna-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .qna-ava{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:0 0 auto}
+  .qna-ava svg{width:18px;height:18px}
+  .qna-title{font-family:var(--display);font-weight:800;font-size:15px;color:var(--ink);line-height:1.1}
+  .qna-sub{font:500 11px var(--sans);color:var(--muted)}
+  .qna-head .spacer{flex:1}
+  .qna-gear{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s}
+  .qna-gear:hover{color:var(--ink);border-color:var(--line-strong)}
+  .qna-gear.on{color:var(--accent);border-color:var(--accent)}
+  .qna-gear svg{width:15px;height:15px}
+  .qna-close{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);cursor:pointer;font-size:18px;line-height:1;transition:color .15s}
+  .qna-close:hover{color:var(--ink)}
+  .qna-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:46vh}
+  .qna-msg{display:flex;max-width:92%}
+  .qna-msg.user{align-self:flex-end}
+  .qna-msg.assistant{align-self:flex-start}
+  .qna-bubble{border-radius:14px;padding:9px 12px;font:500 13.5px/1.55 var(--sans);color:var(--ink);word-break:break-word}
+  .qna-msg.user .qna-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .qna-msg.assistant .qna-bubble{background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .qna-bubble p{margin:0 0 6px}.qna-bubble p:last-child{margin-bottom:0}
+  .qna-bubble>div{min-height:1px}
+  .qna-bubble code{font:600 12px var(--mono);background:var(--surface-3);color:var(--ink);padding:1px 5px;border-radius:5px}
+  .qna-msg.user .qna-bubble code{background:rgba(255,255,255,.22);color:#fff}
+  .qna-bubble pre{background:var(--surface-3);border:1px solid var(--line);border-radius:8px;padding:9px 11px;overflow-x:auto;font:500 11.5px var(--mono);margin:6px 0}
+  .qna-bubble pre code{background:none;padding:0}
+  .qna-bubble ul,.qna-bubble ol{margin:4px 0 6px;padding-left:18px}
+  .qna-bubble li{margin:2px 0}
+  .qna-h{display:block;font-weight:700;margin:8px 0 2px}
+  .qna-typing{display:inline-flex;gap:4px;align-items:center;padding:11px 14px}
+  .qna-typing i{width:6px;height:6px;border-radius:50%;background:var(--faint);animation:qblink 1.2s infinite}
+  .qna-typing i:nth-child(2){animation-delay:.2s}.qna-typing i:nth-child(3){animation-delay:.4s}
+  @keyframes qblink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .qna-sugg{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
+  .qna-sugg button{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:999px;padding:5px 11px;font:600 11.5px var(--sans);cursor:pointer;transition:color .15s,border-color .15s}
+  .qna-sugg button:hover{color:var(--accent);border-color:var(--accent)}
+  .qna-ctl{border-top:1px solid var(--line);padding:10px 12px;background:var(--surface-2)}
+  .qna-settings{display:none;flex-direction:column;gap:7px;margin-bottom:10px}
+  .qna-settings.open{display:flex}
+  .qna-settings .qna-row{display:flex;gap:7px}
+  .qna-settings input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:500 12.5px var(--sans);color:var(--ink);background:var(--surface)}
+  .qna-settings input::placeholder{color:var(--faint)}
+  .qna-note{font:500 11px var(--sans);color:var(--faint)}
+  .qna-note b{color:var(--muted)}
+  .qna-inputrow{display:flex;gap:8px;align-items:flex-end}
+  .qna-inputrow textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:500 13.5px var(--sans);color:var(--ink);background:var(--surface);max-height:140px}
+  .qna-inputrow textarea:focus{outline:none;border-color:var(--accent)}
+  .qna-send{flex:0 0 auto;border:none;border-radius:10px;background:var(--accent);color:#fff;padding:10px 16px;font:700 13px var(--sans);cursor:pointer;transition:filter .15s}
+  .qna-send:hover{filter:brightness(1.06)}
+  .qna-send:disabled{opacity:.5;cursor:default}
+  .qna-status{font:500 10.5px var(--sans);color:var(--faint);text-align:center;margin-top:7px}
+
   @media(prefers-reduced-motion:reduce){
     .seg,.voyage,.kpi,.mk .ship,.icon-btn svg,.verdict,.toast,.reveal,.ticket,.float-chip{transition:none;animation:none}
     .reveal{opacity:1;transform:none}
@@ -836,6 +898,42 @@
   </div>
 
 </div>
+
+<!-- QnA Agent -->
+<button class="qna-fab" id="qnaFab" aria-label="Open Q&A agent">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  Ask the agent
+</button>
+<div class="qna-panel" id="qnaPanel" aria-hidden="true">
+  <header class="qna-head">
+    <div class="qna-ava"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 4 12.7V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3A7 7 0 0 1 12 2z"/><path d="M9 21h6"/></svg></div>
+    <div>
+      <div class="qna-title">AnchorClaim Q&amp;A</div>
+      <div class="qna-sub">Project &amp; blockchain knowledge</div>
+    </div>
+    <span class="spacer"></span>
+    <button class="qna-gear" id="qnaGear" title="Model settings" aria-label="Model settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button class="qna-close" id="qnaClose" aria-label="Close" title="Close">×</button>
+  </header>
+  <div class="qna-msgs" id="qnaMsgs"></div>
+  <div class="qna-sugg" id="qnaSugg"></div>
+  <div class="qna-ctl">
+    <div class="qna-settings" id="qnaSettings">
+      <input id="qnaBase" type="text" placeholder="API base URL · https://api.openai.com/v1" spellcheck="false" autocomplete="off">
+      <div class="qna-row">
+        <input id="qnaKey" type="password" placeholder="API key" spellcheck="false" autocomplete="off">
+        <input id="qnaModel" type="text" placeholder="Model · gpt-4o-mini / deepseek-chat" spellcheck="false" autocomplete="off">
+      </div>
+      <span class="qna-note">Any OpenAI-compatible endpoint works (OpenAI · DeepSeek · OpenRouter · Ollama <b>/v1</b>). Without a key I answer from offline notes.</span>
+    </div>
+    <div class="qna-inputrow">
+      <textarea id="qnaInput" rows="1" placeholder="Ask about demurrage, AIS cross-check, escrow, blockchain…"></textarea>
+      <button class="qna-send" id="qnaSend"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+    <div class="qna-status" id="qnaStatus">offline — configure a model for full answers</div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -1312,6 +1410,164 @@ function toast(msg, type='info'){
   wrap.appendChild(el);
   setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),320); }, 2600);
 }
+
+/* ---------------- QnA Agent ---------------- */
+function qnaEscape(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function qnaMarkdown(md){
+  let src = String(md == null ? '' : md);
+  const blocks = [];
+  src = src.replace(/```[a-zA-Z]*\n?([\s\S]*?)```/g, (m, code)=>{
+    blocks.push('<pre><code>' + qnaEscape(code.replace(/\n\s*$/,'')) + '</code></pre>');
+    return '\u0000B' + (blocks.length-1) + '\u0000';
+  });
+  src = qnaEscape(src);
+  src = src.replace(/`([^`]+)`/g, '<code>$1</code>');
+  src = src.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+  const out = [];
+  let list = null;
+  const closeList = ()=>{ if(list){ out.push('</'+list+'>'); list = null; } };
+  src.split('\n').forEach(line=>{
+    const ul = line.match(/^\s*[-*]\s+(.*)$/);
+    const ol = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
+    if(ul){ if(list!=='ul'){ closeList(); out.push('<ul>'); list='ul'; } out.push('<li>'+ul[1]+'</li>'); return; }
+    if(ol){ if(list!=='ol'){ closeList(); out.push('<ol>'); list='ol'; } out.push('<li>'+ol[2]+'</li>'); return; }
+    closeList();
+    if(!line.trim()) return;
+    if(/^\s*#{1,4}\s/.test(line)){ out.push('<span class="qna-h">'+line.replace(/^\s*#{1,4}\s*/,'')+'</span>'); return; }
+    out.push('<div>'+line+'</div>');
+  });
+  closeList();
+  return out.join('').replace(/\u0000B(\d+)\u0000/g, (m,i)=>blocks[+i]);
+}
+
+const qna = {
+  get base(){ return localStorage.getItem('qna_base')||''; }, set base(v){ localStorage.setItem('qna_base', v); },
+  get key(){ return localStorage.getItem('qna_key')||''; }, set key(v){ localStorage.setItem('qna_key', v); },
+  get model(){ return localStorage.getItem('qna_model')||''; }, set model(v){ localStorage.setItem('qna_model', v); },
+};
+let qnaHistory = [];
+let qnaBusy = false;
+
+const qnaFab = document.getElementById('qnaFab');
+const qnaPanel = document.getElementById('qnaPanel');
+const qnaMsgs = document.getElementById('qnaMsgs');
+const qnaSugg = document.getElementById('qnaSugg');
+const qnaInput = document.getElementById('qnaInput');
+const qnaSendBtn = document.getElementById('qnaSend');
+const qnaGearBtn = document.getElementById('qnaGear');
+const qnaCloseBtn = document.getElementById('qnaClose');
+const qnaSettings = document.getElementById('qnaSettings');
+const qnaBaseInput = document.getElementById('qnaBase');
+const qnaKeyInput = document.getElementById('qnaKey');
+const qnaModelInput = document.getElementById('qnaModel');
+const qnaStatus = document.getElementById('qnaStatus');
+
+const QNA_SUGGESTIONS = [
+  'What is demurrage?',
+  'How does the AIS cross-check catch fraud?',
+  'How does on-chain escrow settlement work?',
+  'What blockchain does AnchorClaim use?',
+];
+
+function qnaWelcome(){
+  qnaMsgs.innerHTML = '';
+  qnaAddMessage('assistant', "Hi, I'm the AnchorClaim assistant. Ask me anything about the **product** (demurrage, AIS cross-check, evidence, escrow, fleet) or about **blockchain**.\n\nPick a question below, or open the ⚙ settings to connect your own model (any OpenAI-compatible endpoint). Without a key I'll answer from my offline notes.");
+  qnaSugg.innerHTML = QNA_SUGGESTIONS.map(q=>`<button>${q}</button>`).join('');
+  qnaSugg.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ qnaInput.value=b.textContent; qnaAsk(b.textContent); }; });
+}
+
+function qnaAddMessage(role, text){
+  const el = document.createElement('div');
+  el.className = 'qna-msg ' + role;
+  el.innerHTML = '<div class="qna-bubble">' + (role==='assistant' ? qnaMarkdown(text) : qnaEscape(text)) + '</div>';
+  qnaMsgs.appendChild(el);
+  qnaMsgs.scrollTop = qnaMsgs.scrollHeight;
+  return el;
+}
+
+function qnaTyping(){
+  const el = document.createElement('div');
+  el.className = 'qna-msg assistant';
+  el.innerHTML = '<div class="qna-bubble qna-typing"><i></i><i></i><i></i></div>';
+  qnaMsgs.appendChild(el);
+  qnaMsgs.scrollTop = qnaMsgs.scrollHeight;
+  return el;
+}
+
+function qnaRefreshStatus(){
+  const configured = !!(qna.key || qna.base);
+  qnaStatus.textContent = configured
+    ? ('active · ' + (qna.model || 'default model') + (qna.base ? ' · ' + qna.base : ''))
+    : 'offline — configure a model for full answers';
+  qnaGearBtn.classList.toggle('on', configured);
+}
+
+function qnaOpen(){
+  qnaPanel.classList.add('open');
+  qnaPanel.setAttribute('aria-hidden','false');
+  if(!qnaMsgs.children.length) qnaWelcome();
+  setTimeout(()=>qnaInput.focus(), 120);
+}
+function qnaClosePanel(){
+  qnaPanel.classList.remove('open');
+  qnaPanel.setAttribute('aria-hidden','true');
+}
+
+async function qnaAsk(text){
+  const q = (text || qnaInput.value || '').trim();
+  if(!q || qnaBusy) return;
+  qnaInput.value=''; qnaAutosize();
+  qnaSugg.innerHTML='';
+  qnaAddMessage('user', q);
+  qnaHistory.push({role:'user', content:q});
+  qnaBusy = true; qnaSendBtn.disabled = true;
+  const typing = qnaTyping();
+  try{
+    const body = { messages: qnaHistory.slice() };
+    if(qna.base) body.base_url = qna.base;
+    if(qna.key) body.api_key = qna.key;
+    if(qna.model) body.model = qna.model;
+    const r = await fetch(API + '/api/qna', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || ('qna ' + r.status));
+    const reply = j.reply || '…';
+    qnaHistory.push({role:'assistant', content:reply});
+    typing.remove();
+    qnaAddMessage('assistant', reply);
+  }catch(e){
+    typing.remove();
+    const msg = '⚠ ' + (e.message || 'request failed');
+    qnaHistory.push({role:'assistant', content:msg});
+    qnaAddMessage('assistant', msg);
+  }
+  qnaBusy = false; qnaSendBtn.disabled = false;
+  qnaInput.focus();
+}
+
+function qnaAutosize(){
+  qnaInput.style.height = 'auto';
+  qnaInput.style.height = Math.min(qnaInput.scrollHeight, 140) + 'px';
+}
+
+qnaFab.onclick = ()=>{ qnaPanel.classList.contains('open') ? qnaClosePanel() : qnaOpen(); };
+qnaCloseBtn.onclick = qnaClosePanel;
+qnaGearBtn.onclick = ()=>{ qnaSettings.classList.toggle('open'); };
+qnaSendBtn.onclick = ()=>qnaAsk();
+qnaInput.addEventListener('input', qnaAutosize);
+qnaInput.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); qnaAsk(); } });
+[qnaBaseInput, qnaKeyInput, qnaModelInput].forEach(inp=>{
+  inp.addEventListener('input', ()=>{
+    qna.base = qnaBaseInput.value.trim();
+    qna.key = qnaKeyInput.value.trim();
+    qna.model = qnaModelInput.value.trim();
+    qnaRefreshStatus();
+  });
+});
+qnaBaseInput.value = qna.base;
+qnaKeyInput.value = qna.key;
+qnaModelInput.value = qna.model;
+qnaRefreshStatus();
 
 /* ---------------- Boot ---------------- */
 async function boot(){
