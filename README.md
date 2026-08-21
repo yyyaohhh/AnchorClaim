@@ -79,7 +79,8 @@ AnchorClaim (demurrage, AIS cross-checking, evidence, escrow settlement, dispute
 roll-up) and about blockchain concepts.
 
 It connects to **any OpenAI-compatible** chat-completions endpoint — the provider and model are
-up to you. Open the chat, click the gear (⚙) and set:
+up to you. Open the chat, click the gear (⚙) and set the three fields below, or tap a **preset
+chip** (OpenAI · DeepSeek · OpenRouter · Ollama) to auto-fill the base URL and model in one click.
 
 | Field | Example |
 |---|---|
