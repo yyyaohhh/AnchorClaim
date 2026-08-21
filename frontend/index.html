@@ -367,19 +367,21 @@
   .legend{display:flex;gap:14px;flex-wrap:wrap;font:500 11px var(--sans);color:var(--muted)}
   .legend span{display:flex;align-items:center;gap:6px}
   .legend i{width:9px;height:9px;border-radius:3px;display:inline-block}
-  .map{position:relative;width:100%;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);
-    min-height:min(72vh,640px);display:flex;align-items:center;justify-content:center;overflow:hidden;
-    background:radial-gradient(130% 90% at 50% 0%, var(--glow), transparent 60%), linear-gradient(180deg,var(--surface-3),var(--bg-soft))}
-  .globe{position:relative;width:min(520px,84%);aspect-ratio:1;border-radius:50%;overflow:hidden;flex:none;
-    background:#0B2440;box-shadow:0 0 0 1px var(--line-strong),0 34px 80px -34px rgba(6,14,24,.7)}
-  .globe-spin{position:absolute;top:0;left:0;height:100%;display:flex;will-change:transform}
-  .globe-tile{position:relative;height:100%;flex:none;background-size:100% 100%;background-repeat:no-repeat;background-position:left top}
-  .globe-shade{position:absolute;inset:0;border-radius:50%;pointer-events:none;
-    background:radial-gradient(125% 125% at 32% 24%, rgba(255,255,255,.20), rgba(255,255,255,0) 46%),
-      radial-gradient(118% 118% at 50% 50%, rgba(255,255,255,0) 56%, rgba(4,12,22,.36) 84%, rgba(3,10,18,.64) 100%)}
-  .globe-caption{position:absolute;left:50%;bottom:15px;transform:translateX(-50%);font:600 10px var(--mono);letter-spacing:2px;color:rgba(255,255,255,.82);
-    background:rgba(4,14,24,.45);padding:5px 13px;border-radius:999px;backdrop-filter:blur(4px);pointer-events:none;white-space:nowrap}
-  .gp{position:absolute;transform:translate(-50%,-50%);cursor:pointer;border:none;background:none;padding:0;text-align:center;line-height:1}
+  .map{position:relative;width:100%;aspect-ratio:2400/1174;border:1px solid var(--line);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);overflow:hidden;background:#0B2440;touch-action:none;cursor:grab}
+  .map.dragging{cursor:grabbing}
+  .map-canvas{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+  .map-img{position:absolute;inset:0;background-image:url('images/map.jpg');background-size:100% 100%;background-repeat:no-repeat;background-position:center}
+  .map-pins{position:absolute;inset:0}
+  .map-controls{position:absolute;right:14px;bottom:14px;display:flex;align-items:center;gap:6px;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:var(--shadow);z-index:2}
+  .mz{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font:700 18px var(--sans);color:var(--ink);
+    background:var(--surface-2);border:1px solid transparent;transition:background .15s,border-color .15s}
+  .mz:hover{background:var(--surface-3);border-color:var(--line-strong)}
+  .mz:active{transform:translateY(1px)}
+  .mz-level{min-width:46px;text-align:center;font:600 11px var(--mono);color:var(--muted)}
+  .mz-reset{width:auto;padding:0 12px;font:600 12px var(--sans);color:var(--muted)}
+  .gp{position:absolute;transform:translate(-50%,-50%) scale(var(--pinScale,1));cursor:pointer;border:none;background:none;padding:0;text-align:center;line-height:1}
   .gp .dot{display:block;width:9px;height:9px;border-radius:50%;background:var(--accent);color:var(--accent);margin:0 auto;position:relative;transition:transform .15s}
   .gp .dot::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid currentColor;opacity:.8;animation:gppulse 2.8s ease-out infinite}
   .gp:hover .dot{transform:scale(1.4)}
@@ -388,36 +390,7 @@
   .gp.worst-dispute .dot{background:var(--red);color:var(--red)}
   .gp.worst-review .dot{background:var(--gold);color:var(--gold)}
   .gp.worst-none .dot{background:var(--teal);color:var(--teal)}
-  .gp .pname{display:block;margin-top:5px;font:700 8px var(--sans);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.5);white-space:nowrap;letter-spacing:.2px}
-  .grid-line{stroke:var(--line);stroke-width:1;opacity:.4}
-  .bathy{fill:none;stroke:var(--bathy);stroke-width:1.2;stroke-linecap:round;stroke-dasharray:2 6}
-  .route{fill:none;stroke:var(--bathy);stroke-width:1.8;stroke-dasharray:5 9;stroke-linecap:round;opacity:.9}
-  .coastfoam{fill:none;stroke:var(--foam);stroke-width:5;stroke-linecap:round;opacity:.6}
-  .port-label{font:700 11px var(--sans);fill:var(--muted);letter-spacing:.3px;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
-  .coord{font:500 9.5px var(--mono);fill:var(--faint);paint-order:stroke;stroke:var(--surface);stroke-width:3.5px;opacity:.7}
-  .compass{color:var(--muted)}
-  .port-pulse{transform-box:fill-box;transform-origin:center;animation:ringdot 2.8s ease-out infinite}
-  @keyframes ringdot{0%{transform:scale(.5);opacity:.9}70%{transform:scale(2.2);opacity:0}100%{opacity:0}}
-
-  .map-markers{position:absolute;inset:0}
-  .mk{position:absolute;transform:translate(-50%,-100%);cursor:pointer;text-align:center;background:none;border:none;padding:0;transition:transform .15s}
-  .mk:hover{transform:translate(-50%,-100%) scale(1.07)}
-  .mk.hidden{display:none}
-  .mk .ship{width:36px;height:36px;margin:0 auto;display:grid;place-items:center;border-radius:50%;background:var(--surface);
-    border:1.5px solid var(--line-strong);box-shadow:var(--shadow);color:var(--faint);animation:bob 3.4s ease-in-out infinite;transition:border-color .2s,color .2s}
-  .mk:hover .ship{border-color:var(--accent);color:var(--accent)}
-  .mk[data-vd="demurrage"] .ship{border-color:var(--amber);color:var(--amber)}
-  .mk[data-vd="none"] .ship{border-color:var(--teal);color:var(--teal)}
-  .mk[data-vd="dispute"] .ship{border-color:var(--red);color:var(--red)}
-  .mk[data-vd="review"] .ship{border-color:var(--gold);color:var(--gold)}
-  .mk .ship svg{width:17px;height:17px}
-  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-  .mk .lbl{margin-top:6px;display:inline-flex;flex-direction:column;align-items:center;gap:1px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 9px;
-    font:600 11px var(--sans);color:var(--ink);white-space:nowrap;box-shadow:var(--shadow-sm)}
-  .mk .mcoord{font:600 9px var(--mono);color:var(--faint);letter-spacing:.2px}
-  .mk .vdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
-  .vd-demurrage{background:var(--amber)} .vd-none{background:var(--teal)}
-  .vd-dispute{background:var(--red)} .vd-review{background:var(--gold)} .vd-unrun{background:var(--faint)}
+  .gp .pname{display:block;margin-top:5px;font:700 10px var(--sans);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.5);white-space:nowrap;letter-spacing:.2px}
 
   /* Detail */
   .back-map{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:9px;padding:8px 14px;font:600 13px var(--sans);color:var(--muted);transition:all .15s;margin-bottom:20px}
@@ -892,7 +865,7 @@
       <main class="stage" id="stage">
         <div id="mapView">
           <div class="map-head">
-            <div><div class="map-title">Fleet map — live world positions</div><div class="map-sub">A rotating globe built from live port coordinates. Click any port to open its latest voyage audit.</div></div>
+            <div><div class="map-title">Fleet map — live world positions</div><div class="map-sub">Live port positions on the world map. Zoom in / out or drag to pan — click any port to open its latest voyage audit.</div></div>
             <div class="legend">
               <span><i style="background:var(--amber)"></i>Demurrage</span>
               <span><i style="background:var(--teal)"></i>No demurrage</span>
@@ -901,10 +874,15 @@
             </div>
           </div>
           <div class="map" id="map">
-            <div class="globe" id="globe">
-              <div class="globe-spin" id="globeSpin"></div>
-              <div class="globe-shade"></div>
-              <div class="globe-caption">ROTATING GLOBE · LIVE</div>
+            <div class="map-canvas" id="mapCanvas">
+              <div class="map-img" id="mapImg"></div>
+              <div class="map-pins" id="mapPins"></div>
+            </div>
+            <div class="map-controls">
+              <button class="mz" id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+              <span class="mz-level" id="zoomLevel">100%</span>
+              <button class="mz" id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+              <button class="mz mz-reset" id="zoomReset" title="Reset view">Reset</button>
             </div>
           </div>
         </div>
@@ -1073,7 +1051,7 @@ document.getElementById('themeToggle').addEventListener('click', ()=>{
 function showDemo(){
   document.body.setAttribute('data-view','demo');
   window.scrollTo(0,0);
-  requestAnimationFrame(()=>buildGlobe());
+  requestAnimationFrame(()=>buildMap());
 }
 function showLanding(){
   document.body.setAttribute('data-view','landing');
@@ -1161,11 +1139,11 @@ const PORT_COORDS = {
   "Port of Shenzhen":[22.54,114.06],
   "Port Klang":[3.03,101.45],
 };
-// World-map globe built from the uploaded equirectangular texture (full -180..180 x -90..90).
-const WM = { AR: 2400/1174, IMG: 'images/map.jpg' };
+// Zoomable world map built from the uploaded equirectangular texture (full -180..180 x -90..90).
+const WM = { AR: 2400/1174 };
 const worldXY = (lat,lng)=>[ (lng+180)/360, (90-lat)/180 ];
 const fmtCoord=([lat,lng])=>`${Math.abs(lat).toFixed(2)}°${lat>=0?'N':'S'} ${Math.abs(lng).toFixed(2)}°${lng>=0?'E':'W'}`;
-const GLOBE = { tileW:0, D:0, offset:0, speed:24, paused:false, raf:0, last:0, built:false, offsetSet:false };
+const MV = { vw:0, vh:0, cw:0, ch:0, scale:1, tx:0, ty:0, minScale:1, maxScale:10, fitted:false, dragging:false };
 const statusRank = s => s==='dispute'?3 : s==='demurrage'?2 : s==='review'?1 : 0;
 const PORT_SHORT = {
   "Port of Singapore":"Singapore","Port of Hong Kong":"Hong Kong","Port of Tokyo":"Tokyo",
@@ -1173,50 +1151,71 @@ const PORT_SHORT = {
   "Port of Manila":"Manila","Port of Osaka":"Osaka","Port of Shenzhen":"Shenzhen","Port Klang":"Klang",
 };
 
-function buildGlobe(){
-  const globe = document.getElementById('globe'); if(!globe) return;
-  const spin = document.getElementById('globeSpin'); if(!spin) return;
-  const D = globe.clientWidth || GLOBE.D || 520;
-  const tileW = Math.round(D * WM.AR);
-  GLOBE.D = D;
-  if(GLOBE.tileW) GLOBE.offset = GLOBE.offset / GLOBE.tileW * tileW;  // preserve rotation phase across resizes
-  GLOBE.tileW = tileW;
-  if(!GLOBE.offsetSet){ const c=(118+180)/360; GLOBE.offset = (c*tileW - D/2 + tileW) % tileW; GLOBE.offsetSet = true; }
-  spin.style.height = D+'px';
-  spin.style.width = (tileW*2)+'px';
-  for(let i=0;i<2;i++){
-    if(!spin.children[i]){
-      const t = document.createElement('div'); t.className = 'globe-tile';
-      const m = document.createElement('div'); m.className = 'tile-marks';
-      t.appendChild(m); spin.appendChild(t);
-    }
-    const t = spin.children[i];
-    t.style.width = tileW+'px'; t.style.height = D+'px';
-    t.style.backgroundImage = `url('${WM.IMG}')`;
-  }
-  if(!globe.dataset.bound){
-    globe.dataset.bound = '1';
-    globe.addEventListener('mouseenter', ()=>{ GLOBE.paused = true; });
-    globe.addEventListener('mouseleave', ()=>{ GLOBE.paused = false; });
-  }
-  GLOBE.built = true;
-  if(!GLOBE.raf) startGlobeSpin();
+function buildMap(){
+  const mapEl = document.getElementById('map'); if(!mapEl) return;
+  const canvas = document.getElementById('mapCanvas'); if(!canvas) return;
+  const vw = mapEl.clientWidth, vh = mapEl.clientHeight;
+  if(!vw || !vh) return;
+  MV.vw = vw; MV.vh = vh;
+  let cw, ch;
+  if(vw/vh >= WM.AR){ ch = vh; cw = vh*WM.AR; } else { cw = vw; ch = vw/WM.AR; }
+  MV.cw = cw; MV.ch = ch;
+  canvas.style.width = cw+'px'; canvas.style.height = ch+'px';
+  if(!MV.fitted){ MV.scale = 1; MV.tx = (vw-cw)/2; MV.ty = (vh-ch)/2; MV.fitted = true; }
+  else if(MV.scale === 1){ MV.tx = (vw-cw)/2; MV.ty = (vh-ch)/2; }
+  applyMapTransform();
   renderMapMarkers();
+  wireZoom();
 }
 
-function startGlobeSpin(){
-  const spin = document.getElementById('globeSpin');
-  const loop = (ts)=>{
-    if(!GLOBE.last) GLOBE.last = ts;
-    const dt = Math.min(100, ts - GLOBE.last)/1000;
-    GLOBE.last = ts;
-    if(!GLOBE.paused && mapView && mapView.style.display!=='none'){
-      GLOBE.offset = (GLOBE.offset + GLOBE.speed*dt) % GLOBE.tileW;
-    }
-    spin.style.transform = `translateX(${(-GLOBE.offset).toFixed(2)}px)`;
-    GLOBE.raf = requestAnimationFrame(loop);
-  };
-  GLOBE.raf = requestAnimationFrame(loop);
+function applyMapTransform(){
+  const canvas = document.getElementById('mapCanvas'); if(!canvas) return;
+  canvas.style.transform = `translate(${MV.tx}px, ${MV.ty}px) scale(${MV.scale})`;
+  canvas.style.setProperty('--pinScale', (1/MV.scale).toFixed(5));
+  const lvl = document.getElementById('zoomLevel'); if(lvl) lvl.textContent = Math.round(MV.scale*100)+'%';
+}
+
+function zoomBy(f){
+  const ns = Math.max(MV.minScale, Math.min(MV.maxScale, MV.scale * f));
+  if(ns === MV.scale) return;
+  const vcx = MV.vw/2, vcy = MV.vh/2;
+  const cx = (vcx - MV.tx)/MV.scale, cy = (vcy - MV.ty)/MV.scale;
+  MV.tx = vcx - ns*cx; MV.ty = vcy - ns*cy;
+  MV.scale = ns;
+  applyMapTransform();
+}
+
+function zoomReset(){
+  MV.scale = 1;
+  MV.tx = (MV.vw - MV.cw)/2; MV.ty = (MV.vh - MV.ch)/2;
+  applyMapTransform();
+}
+
+function wireZoom(){
+  const mapEl = document.getElementById('map'); if(!mapEl || mapEl.dataset.wired) return;
+  mapEl.dataset.wired = '1';
+  document.getElementById('zoomIn').onclick = ()=>zoomBy(1.4);
+  document.getElementById('zoomOut').onclick = ()=>zoomBy(1/1.4);
+  document.getElementById('zoomReset').onclick = ()=>zoomReset();
+  let px=0, py=0;
+  mapEl.addEventListener('mousedown', e=>{
+    if(e.target.closest('.gp')) return;   // don't pan when clicking a port pin
+    MV.dragging = true; px = e.clientX; py = e.clientY; mapEl.classList.add('dragging');
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!MV.dragging) return;
+    MV.tx += e.clientX - px; MV.ty += e.clientY - py; px = e.clientX; py = e.clientY;
+    applyMapTransform();
+  });
+  window.addEventListener('mouseup', ()=>{ MV.dragging = false; mapEl.classList.remove('dragging'); });
+  let t0 = null;
+  mapEl.addEventListener('touchstart', e=>{ if(e.touches.length===1){ t0=e.touches[0]; MV.dragging=true; } }, {passive:true});
+  mapEl.addEventListener('touchmove', e=>{
+    if(!MV.dragging || e.touches.length!==1) return;
+    const t=e.touches[0]; MV.tx += t.clientX-t0.clientX; MV.ty += t.clientY-t0.clientY; t0=t;
+    applyMapTransform();
+  }, {passive:true});
+  mapEl.addEventListener('touchend', ()=>{ MV.dragging=false; mapEl.classList.remove('dragging'); });
 }
 
 function firstIdOfPort(port){
@@ -1234,10 +1233,8 @@ async function openPort(name){
   }catch(e){ toast('Could not load fleet: '+e.message,'err'); }
 }
 
-// (previous SVG map removed — replaced by the rotating globe above)
-
 function renderMapMarkers(){
-  if(!GLOBE.built) return;
+  const pins = document.getElementById('mapPins'); if(!pins) return;
   const agg = new Map();
   Object.values(DATA).forEach(v=>{
     if(!PORT_COORDS[v.port]) return;
@@ -1261,12 +1258,10 @@ function renderMapMarkers(){
     html += `<button class="gp${cls}" data-port="${name}" title="${name} · ${fmtCoord([m.lat,m.lng])} · ${sub}" style="left:${x}%;top:${y}%">
       <span class="dot"></span><span class="pname">${PORT_SHORT[name]||name}</span></button>`;
   });
-  document.querySelectorAll('#globeSpin .tile-marks').forEach(m=>{
-    m.innerHTML = html;
-    m.querySelectorAll('.gp').forEach(b=>{ b.onclick = ()=>openPort(b.dataset.port); });
-  });
+  pins.innerHTML = html;
+  pins.querySelectorAll('.gp').forEach(b=>{ b.onclick = ()=>openPort(b.dataset.port); });
 }
-window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') buildGlobe(); });
+window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='none') buildMap(); });
 
 /* ---------------- Fleet list & filters ---------------- */
 const FILTERS = [
@@ -1841,7 +1836,7 @@ function backToMap(){
   activeId=null;
   detail.style.display='none'; mapView.style.display='block';
   document.querySelectorAll('.voyage').forEach(el=>el.classList.remove('active'));
-  buildGlobe();
+  buildMap();
 }
 
 /* ---------------- Result ---------------- */
