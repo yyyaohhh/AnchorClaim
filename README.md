@@ -80,22 +80,19 @@ roll-up) and about blockchain concepts.
 
 It connects to **any OpenAI-compatible** chat-completions endpoint — the provider and model are
 up to you. Open the chat, click the gear (⚙) and set the three fields below, or tap a **preset
-chip** (OpenAI · DeepSeek · OpenRouter · Ollama) to auto-fill the base URL and model in one click.
+chip** (OpenAI · OpenRouter · Ollama) to auto-fill the base URL and model in one click, or
+**+ Custom API** to enter any other endpoint.
 
 | Field | Example |
 |---|---|
-| API base URL | `https://api.openai.com/v1` · `https://api.deepseek.com` · `https://openrouter.ai/api/v1` · `http://localhost:11434/v1` |
+| API base URL | `https://api.openai.com/v1` · `https://openrouter.ai/api/v1` · `http://localhost:11434/v1` (or any custom OpenAI-compatible URL) |
 | API key | `sk-...` (leave blank for a local Ollama; pass a dummy value if the provider ignores it) |
-| Model | `gpt-4o-mini` · `deepseek-chat` · `qwen2.5` |
+| Model | `gpt-4o-mini` · `qwen2.5` (or any model your provider serves) |
 
 ```bash
 # OpenAI
 base URL:  https://api.openai.com/v1
 model:     gpt-4o-mini
-
-# DeepSeek
-base URL:  https://api.deepseek.com
-model:     deepseek-chat
 
 # Local Ollama (OpenAI-compatible, no key needed)
 base URL:  http://localhost:11434/v1
@@ -107,9 +104,9 @@ server. You can also provision them as environment variables instead of typing t
 environment values are used when the matching UI field is empty:
 
 ```bash
-export ANCHORCLAIM_QNA_BASE_URL="https://api.deepseek.com"
+export ANCHORCLAIM_QNA_BASE_URL="https://api.openai.com/v1"
 export ANCHORCLAIM_QNA_API_KEY="sk-..."
-export ANCHORCLAIM_QNA_MODEL="deepseek-chat"
+export ANCHORCLAIM_QNA_MODEL="gpt-4o-mini"
 python backend/server.py
 ```
 

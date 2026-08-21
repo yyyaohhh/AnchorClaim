@@ -596,6 +596,7 @@
   .qna-preset{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:999px;padding:5px 12px;font:600 11.5px var(--sans);cursor:pointer;transition:color .15s,border-color .15s}
   .qna-preset:hover{color:var(--accent);border-color:var(--accent)}
   .qna-preset.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  .qna-preset.qna-custom{border-style:dashed;color:var(--ink)}
   .qna-settings .qna-row{display:flex;gap:7px}
   .qna-settings input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:500 12.5px var(--sans);color:var(--ink);background:var(--surface)}
   .qna-settings input::placeholder{color:var(--faint)}
@@ -925,16 +926,16 @@
     <div class="qna-settings" id="qnaSettings">
       <div class="qna-presets" id="qnaPresets">
         <button class="qna-preset" data-preset="openai">OpenAI</button>
-        <button class="qna-preset" data-preset="deepseek">DeepSeek</button>
         <button class="qna-preset" data-preset="openrouter">OpenRouter</button>
         <button class="qna-preset" data-preset="ollama">Ollama · local</button>
+        <button class="qna-preset qna-custom" data-preset="custom">+ Custom API</button>
       </div>
       <input id="qnaBase" type="text" placeholder="API base URL · https://api.openai.com/v1" spellcheck="false" autocomplete="off">
       <div class="qna-row">
         <input id="qnaKey" type="password" placeholder="API key" spellcheck="false" autocomplete="off">
-        <input id="qnaModel" type="text" placeholder="Model · gpt-4o-mini / deepseek-chat" spellcheck="false" autocomplete="off">
+        <input id="qnaModel" type="text" placeholder="Model name · e.g. gpt-4o-mini" spellcheck="false" autocomplete="off">
       </div>
-      <span class="qna-note">Any OpenAI-compatible endpoint works (OpenAI · DeepSeek · OpenRouter · Ollama <b>/v1</b>). Without a key I answer from offline notes.</span>
+      <span class="qna-note">Any OpenAI-compatible endpoint works — use a preset, or <b>+ Custom API</b> for any other company / self-hosted URL. Without a key I answer from offline notes.</span>
     </div>
     <div class="qna-inputrow">
       <textarea id="qnaInput" rows="1" placeholder="Ask about demurrage, AIS cross-check, escrow, blockchain…"></textarea>
@@ -1483,7 +1484,6 @@ const QNA_SUGGESTIONS = [
 
 const QNA_PRESETS = {
   openai:     { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  deepseek:   { base: 'https://api.deepseek.com',  model: 'deepseek-chat' },
   openrouter: { base: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini' },
   ollama:     { base: 'http://localhost:11434/v1', model: 'qwen2.5' },
 };
@@ -1540,6 +1540,14 @@ function qnaDetectPreset(){
       qnaPresets.querySelector(`.qna-preset[data-preset="${id}"]`)?.classList.add('active');
     }
   });
+}
+
+function qnaCustom(){
+  qnaPresets.querySelectorAll('.qna-preset').forEach(b=>b.classList.remove('active'));
+  qnaBaseInput.value = ''; qnaModelInput.value = '';
+  qna.base = ''; qna.model = '';
+  qnaRefreshStatus();
+  qnaBaseInput.focus();
 }
 
 function qnaOpen(){
@@ -1604,7 +1612,7 @@ qnaInput.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.
     qnaRefreshStatus();
   });
 });
-qnaPresets.querySelectorAll('.qna-preset').forEach(b=>{ b.onclick=()=>qnaApplyPreset(b.dataset.preset); });
+qnaPresets.querySelectorAll('.qna-preset').forEach(b=>{ b.onclick=()=>{ b.dataset.preset==='custom' ? qnaCustom() : qnaApplyPreset(b.dataset.preset); }; });
 qnaBaseInput.value = qna.base;
 qnaKeyInput.value = qna.key;
 qnaModelInput.value = qna.model;
