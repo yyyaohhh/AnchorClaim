@@ -20,6 +20,8 @@ confirm and sign before that point.
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 from datetime import datetime, timedelta
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
@@ -29,10 +31,49 @@ MOCK_WALLETS = {
     "shipowner": "0x0AB9d3E5f7A9c1E3b5D7f9A1c3E5b7D9f1A3c5E7",
 }
 
-# In-memory funding state per voyage_id. A demo-scale, single-process store;
-# resets when the server restarts, same as the on-disk audit cache resets
-# when you clear it.
+# In-memory funding state per voyage_id, mirrored to disk (via configure())
+# so signatures survive a server restart instead of vanishing mid-demo.
 _FUNDING_STATE: dict[str, dict] = {}
+_CACHE_DIR: str | None = None
+
+
+def configure(cache_dir: str) -> None:
+    """Set the directory funding state persists to. Call once at startup with
+    the same cache dir the audit results use (backend/server.py resolves it
+    defensively for read-only serverless filesystems)."""
+    global _CACHE_DIR
+    _CACHE_DIR = cache_dir
+
+
+def _state_path(voyage_id: str) -> str | None:
+    return os.path.join(_CACHE_DIR, f"funding_{voyage_id}.json") if _CACHE_DIR else None
+
+
+def _load_state(voyage_id: str) -> dict:
+    if voyage_id in _FUNDING_STATE:
+        return _FUNDING_STATE[voyage_id]
+    path = _state_path(voyage_id)
+    if path and os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                state = json.load(f)
+            _FUNDING_STATE[voyage_id] = state
+            return state
+        except (OSError, ValueError):
+            pass
+    return {}
+
+
+def _save_state(voyage_id: str, state: dict) -> None:
+    _FUNDING_STATE[voyage_id] = state
+    path = _state_path(voyage_id)
+    if not path:
+        return
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+    except OSError:
+        pass
 
 
 def _parse(ts: str) -> datetime:
@@ -55,7 +96,7 @@ def contract_template(voyage_id: str, voyage: dict, contract: dict) -> dict:
 
 
 def funding_status(voyage_id: str) -> dict:
-    state = _FUNDING_STATE.get(voyage_id, {})
+    state = _load_state(voyage_id)
     signed = {party: party in state for party in ("charterer", "shipowner")}
     return {"signed": signed, "funded": all(signed.values()), "signatures": state}
 
@@ -63,15 +104,22 @@ def funding_status(voyage_id: str) -> dict:
 def sign(voyage_id: str, party: str) -> dict:
     if party not in MOCK_WALLETS:
         raise ValueError("party must be 'charterer' or 'shipowner'")
-    state = _FUNDING_STATE.setdefault(voyage_id, {})
+    state = dict(_load_state(voyage_id))
     payload = f"{voyage_id}:{party}:{datetime.utcnow().isoformat()}"
     signature = "0x" + hashlib.sha256(payload.encode()).hexdigest()[:40]
     state[party] = {"wallet": MOCK_WALLETS[party], "signature": signature}
+    _save_state(voyage_id, state)
     return funding_status(voyage_id)
 
 
 def reset_funding(voyage_id: str) -> None:
     _FUNDING_STATE.pop(voyage_id, None)
+    path = _state_path(voyage_id)
+    if path and os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def monitoring_log(voyage: dict) -> list[dict]:

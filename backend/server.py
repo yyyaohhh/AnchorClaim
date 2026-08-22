@@ -30,6 +30,7 @@ from fleet import fleet_overview, build_fleet, PORTS as PORT_COORDS  # noqa: E40
 from qna_agent import ask_question            # noqa: E402
 from step1_parse_contract import parse_contract  # noqa: E402
 from llm import chat_json, entry_to_agent, load_settings, public_status, save_settings  # noqa: E402
+import lifecycle                              # noqa: E402
 from lifecycle import (                       # noqa: E402
     contract_template, funding_status, sign, reset_funding, monitoring_log,
 )
@@ -100,6 +101,7 @@ def _resolve_cache_dir():
 
 
 CACHE_DIR = _resolve_cache_dir()
+lifecycle.configure(CACHE_DIR)
 
 
 def _input_hash(voyage_id):

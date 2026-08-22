@@ -10,3 +10,6 @@ python-dotenv>=1.0   # loads .env so API keys / RPC config take effect without e
 # Optional — enable real on-chain settlement (local only; not needed on Vercel).
 # Uncomment to install.
 # web3
+
+# Dev only — run the test suite (pytest tests/)
+pytest>=8.0

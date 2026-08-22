@@ -58,6 +58,14 @@ def calculate_demurrage(contract: dict, ais_port_log: dict, suspension_events: l
     daily_rate = contract["demurrage_rate_usd_per_day"]
     total_penalty = excess_days * daily_rate
 
+    # Despatch: the mirror of demurrage. Most charter parties reward the charterer
+    # for finishing cargo ops ahead of the allowed laytime — conventionally at half
+    # the demurrage rate ("despatch money at half demurrage") unless the contract
+    # states its own despatch rate.
+    saved_hours = max(allowed - counted_hours, 0)
+    despatch_rate = contract.get("despatch_rate_usd_per_day", daily_rate / 2)
+    total_despatch = (saved_hours / 24) * despatch_rate
+
     return {
         "vessel_name": contract.get("vessel_name", ais_port_log.get("vessel_name")),
         "gross_duration_hours": round(gross_hours, 2),
@@ -67,6 +75,9 @@ def calculate_demurrage(contract: dict, ais_port_log: dict, suspension_events: l
         "allowed_laytime_hours": allowed,
         "excess_time_hours": round(excess_hours, 2),
         "total_penalty_usd": round(total_penalty, 2),
+        "saved_time_hours": round(saved_hours, 2),
+        "despatch_rate_usd_per_day": round(despatch_rate, 2),
+        "total_despatch_usd": round(total_despatch, 2),
     }
 
 

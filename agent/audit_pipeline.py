@@ -97,8 +97,20 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
 
     # --- Verdict — always resolved autonomously, never held for a human ---
     penalty = receipt["total_penalty_usd"]
+    despatch = receipt.get("total_despatch_usd", 0)
     if penalty <= 0:
-        result["verdict"] = {"type": "none", "amount_usd": 0, "settled": True}
+        if despatch > 0:
+            result["verdict"] = {
+                "type": "despatch",
+                "amount_usd": despatch,
+                "saved_hours": receipt["saved_time_hours"],
+                "refund_to_charterer": voyage["escrow"]["deposit"],
+                "freight_to_owner": voyage["escrow"]["freight"],
+                "settled": True,
+                "note": "Despatch is paid by the shipowner directly, not funded from this escrow.",
+            }
+        else:
+            result["verdict"] = {"type": "none", "amount_usd": 0, "settled": True}
         return result
 
     # capped at deposit

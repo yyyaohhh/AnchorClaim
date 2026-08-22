@@ -356,6 +356,7 @@
 
   .s-demurrage{background:var(--amber-soft);color:var(--amber-deep)}
   .s-none{background:var(--teal-soft);color:var(--teal)}
+  .s-despatch{background:var(--accent-soft);color:var(--accent)}
   .s-dispute{background:var(--red-soft);color:var(--red)}
   .s-review{background:var(--gold-soft);color:var(--gold)}
   .s-loading{background:var(--surface-2);color:var(--faint)}
@@ -466,11 +467,12 @@
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   .verdict.demurrage{border-color:var(--amber);background:linear-gradient(160deg,var(--amber-soft),var(--surface) 70%)}
   .verdict.none{border-color:var(--teal);background:linear-gradient(160deg,var(--teal-soft),var(--surface) 70%)}
+  .verdict.despatch{border-color:var(--accent);background:linear-gradient(160deg,var(--accent-soft),var(--surface) 70%)}
   .verdict.dispute{border-color:var(--red);background:linear-gradient(160deg,var(--red-soft),var(--surface) 70%)}
   .verdict.review{border-color:var(--gold);background:linear-gradient(160deg,var(--gold-soft),var(--surface) 70%)}
   .verdict .vhead{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15.5px;color:var(--ink)}
   .verdict .amt{font-family:var(--display);font-size:40px;font-weight:800;margin:12px 0 6px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
-  .amt.demurrage{color:var(--amber)} .amt.none{color:var(--teal)} .amt.dispute{color:var(--red)} .amt.review{color:var(--gold)}
+  .amt.demurrage{color:var(--amber)} .amt.none{color:var(--teal)} .amt.despatch{color:var(--accent)} .amt.dispute{color:var(--red)} .amt.review{color:var(--gold)}
   .amt .at-risk{font:700 13px var(--sans);color:var(--gold);letter-spacing:0;vertical-align:middle}
   .verdict .expl{font-family:var(--mono);font-size:12.5px;color:var(--ink);line-height:1.75;opacity:.9}
   .review-list{margin:8px 0 0 18px;padding:0}
@@ -1217,8 +1219,9 @@ const playSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const BADGE = {
   demurrage:{cls:"s-demurrage",text:"Demurrage"},
   none:{cls:"s-none",text:"No demurrage"},
+  despatch:{cls:"s-despatch",text:"Despatch"},
 };
-const VD = {demurrage:'vd-demurrage', none:'vd-none'};
+const VD = {demurrage:'vd-demurrage', none:'vd-none', despatch:'vd-despatch'};
 function statusOf(v){
   if(!v.cached || !v._verdict) return 'unrun';
   return v._verdict;
@@ -1390,6 +1393,7 @@ window.addEventListener('resize', ()=>{ if(mapView && mapView.style.display!=='n
 const FILTERS = [
   {key:'all', label:'All'},
   {key:'demurrage', label:'Demurrage'},
+  {key:'despatch', label:'Despatch'},
   {key:'none', label:'Clear'},
   {key:'unrun', label:'Pending'},
 ];
@@ -1452,8 +1456,8 @@ function renderKPIs(){
   document.getElementById('kRecoveredSub').textContent = owner ? 'your collectible demurrage' : 'your charges, explained below';
 }
 function renderStatusStrip(){
-  const order=[['demurrage','Demurrage'],['none','No demurrage'],['unrun','Pending']];
-  const colors={demurrage:'var(--amber)',none:'var(--teal)',unrun:'var(--faint)'};
+  const order=[['demurrage','Demurrage'],['none','No demurrage'],['despatch','Despatch'],['unrun','Pending']];
+  const colors={demurrage:'var(--amber)',none:'var(--teal)',despatch:'var(--accent)',unrun:'var(--faint)'};
   const counts={}; order.forEach(([k])=>counts[k]=0);
   Object.values(DATA).forEach(v=>{ const s=statusOf(v); counts[s]=(counts[s]||0)+1; });
   const total=Math.max(1,Object.keys(DATA).length);
@@ -2158,8 +2162,17 @@ function renderLaytime(R){
 function calcBreakdown(R){
   const c=R.contract, rc=R.receipt, v=R.verdict;
   const conds=(c.suspension_conditions||[]).join(', ');
-  const rows=[
-    ['Gross time in port', `${rc.gross_duration_hours}h`, 'berthing → departure'],
+  const isDespatch = v.type==='despatch';
+  const rows=isDespatch?[
+    ['Gross time in port', `${rc.gross_duration_hours}h`, 'NOR → departure'],
+    ['− Excluded (evidence-corroborated)', `${rc.excluded_hours}h`, conds?`clauses: ${conds}`:'no exclusions applied'],
+    ['= Counted laytime', `${rc.counted_laytime_hours}h`, ''],
+    ['Allowed laytime', `${c.laytime_hours}h`, 'from charter party'],
+    ['= Time saved', `${rc.saved_time_hours}h`, 'finished ahead of allowed laytime'],
+    ['× Despatch rate', `${fmt(rc.despatch_rate_usd_per_day)}/day`, `${rc.saved_time_hours}h = ${(rc.saved_time_hours/24).toFixed(3)} days`],
+    ['= Despatch ' + (ROLE==='owner' ? 'payable' : 'receivable'), fmt(v.amount_usd||rc.total_despatch_usd), 'saved ÷ 24 × rate'],
+  ]:[
+    ['Gross time in port', `${rc.gross_duration_hours}h`, 'NOR → departure'],
     ['− Excluded (evidence-corroborated)', `${rc.excluded_hours}h`, conds?`clauses: ${conds}`:'no exclusions applied'],
     ['= Counted laytime', `${rc.counted_laytime_hours}h`, ''],
     ['− Allowed laytime', `${c.laytime_hours}h`, 'from charter party'],
@@ -2248,6 +2261,15 @@ function renderResult(R){
       <div class="expl">${owner
         ? `Excess ${v.excess_hours}h × ${fmt(R.contract.demurrage_rate_usd_per_day)}/day. ${fmt(v.penalty)} is deducted from the charterer's escrow to you (capped at deposit ${fmt(R.escrow.deposit)}). Freight ${fmt(v.freight_to_owner)} also stays with you; the charterer gets the remaining ${fmt(v.refund_to_charterer)} back.`
         : `Your vessel stayed ${v.excess_hours}h past the allowed laytime (${fmt(R.contract.demurrage_rate_usd_per_day)}/day), so ${fmt(v.penalty)} is deducted from your ${fmt(R.escrow.deposit)} deposit to the shipowner. You are refunded ${fmt(v.refund_to_charterer)}; freight ${fmt(v.freight_to_owner)} is paid in full.`}</div>
+      ${calcBreakdown(R)}${txRow(R)}`;
+  } else if(v.type==='despatch'){
+    block.className='verdict despatch';
+    block.innerHTML=`
+      <div class="vhead">${owner?'Despatch — you pay':'Despatch — you collect'}</div>
+      <div class="amt despatch" data-animate="${v.amount_usd}">${fmt(v.amount_usd)}</div>
+      <div class="expl">${owner
+        ? `Cargo ops finished ${v.saved_hours}h ahead of the allowed laytime, so you owe the charterer ${fmt(v.amount_usd)} despatch (paid by you directly, not from escrow). Their full ${fmt(v.refund_to_charterer)} deposit is released and freight ${fmt(v.freight_to_owner)} stays with you.`
+        : `Your vessel finished ${v.saved_hours}h ahead of the allowed laytime, so the shipowner owes you ${fmt(v.amount_usd)} despatch (paid directly, not from escrow). Your full ${fmt(v.refund_to_charterer)} deposit is refunded; freight ${fmt(v.freight_to_owner)} is paid in full.`}</div>
       ${calcBreakdown(R)}${txRow(R)}`;
   } else {
     block.className='verdict none';
