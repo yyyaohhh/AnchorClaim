@@ -2202,6 +2202,12 @@ function evidencePanel(R){
     : '';
   return `<div class="evidence"><div class="ev-head">Multi-source verification<span class="ev-score">${score}</span></div>${body}${gaps}</div>`;
 }
+function evAgentErr(e){
+  let host='';
+  try{ host = new URL(e.base||'').host; }catch(_){ host = e.base||''; }
+  const parts = [e.agent, e.model?('model '+e.model):'', host?('@ '+host):''].filter(Boolean).join(' ');
+  return `${parts} — ${e.error}`;
+}
 function reasoningPanel(R){
   const rs=R.reasoning;
   const hasSuspensions=(rs?.suspension_decisions||[]).length>0;
@@ -2225,7 +2231,7 @@ function reasoningPanel(R){
     return `<div class="ev-row"><span class="ev-icon ${rs.ais_sof_consistent?'ok':'warn'}">${rs.ais_sof_consistent?'✓':'!'}</span><span class="ev-name">AIS/SoF timeline</span><span class="ev-note">${rs.ais_sof_consistent?'submitted log trusted':'submitted log overridden with AIS'} — ${rs.ais_sof_note}${votes}</span></div>`;
   })() : '';
   const gaps=(rs.agent_errors||[]).length
-    ? `<div class="ev-gap">⚠ ${rs.agent_errors.length} agent(s) failed to respond: ${rs.agent_errors.map(e=>`${e.agent} (${e.error})`).join('; ')}</div>` : '';
+    ? `<div class="ev-gap">⚠ ${rs.agent_errors.length} agent(s) failed to respond — check base URL / key / model in Settings: ${rs.agent_errors.map(evAgentErr).join('; ')}</div>` : '';
   return `<div class="evidence"><div class="ev-head">Agent reasoning<span class="ev-score">${modeLabel}</span></div>${aisSofRow}${rows}${gaps}</div>`;
 }
 function renderResult(R){
@@ -2334,8 +2340,13 @@ function setRender(providers){
 
 function setNewCard(preset){
   const p = AI_PRESETS[preset];
+  let label = p.label;
+  if(preset==='custom'){
+    const n = Array.from(setListEl.querySelectorAll('.set-label')).filter(i=>i.value.trim().startsWith('Custom API')).length;
+    label = n ? ('Custom API #'+(n+1)) : 'Custom API';
+  }
   const card = { id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-                 kind:p.kind, label:p.label, base_url:p.base, model:p.model, api_key_set:false, api_key_hint:'' };
+                 kind:p.kind, label:label, base_url:p.base, model:p.model, api_key_set:false, api_key_hint:'' };
   const wrap = document.createElement('div');
   wrap.innerHTML = setCardHTML(card);
   const root = wrap.firstElementChild;

@@ -44,6 +44,12 @@ KIND_DEFAULTS = {
 }
 
 REQUEST_TIMEOUT = 30
+USER_AGENT = "AnchorClaim/1.0 (+python-urllib)"
+
+
+class ProviderError(Exception):
+    """An LLM provider call failed (HTTP status or network), with server detail attached."""
+
 
 _SETTINGS_CANDIDATES = [
     os.path.join(_ROOT, ".anchorclaim_settings.json"),
@@ -271,10 +277,29 @@ def _chat_url(base_url: str) -> str:
 def _post(url: str, payload: dict, headers: dict) -> dict:
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers}, method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
+            **headers,
+        },
+        method="POST",
     )
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace").strip()[:400]
+        except Exception:  # noqa: BLE001
+            detail = ""
+        msg = f"HTTP {e.code} {e.reason}"
+        if detail:
+            msg += f" — {detail}"
+        raise ProviderError(msg) from e
+    except urllib.error.URLError as e:
+        raise ProviderError(f"unreachable — {e.reason}") from e
 
 
 def openai_chat(prompt: str, base_url: str, api_key: str, model: str, system: str | None = None) -> str:

@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import json
 import re
-import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 from llm import complete, configured_agents
@@ -48,9 +47,14 @@ def _run_agent(agent_cfg: dict, prompt: str) -> dict | None:
         verdict = _extract_json(complete(agent_cfg, prompt))
         verdict["agent"] = agent_cfg["name"]
         return verdict
-    except (urllib.error.URLError, KeyError, ValueError, TimeoutError) as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[step2b] {agent_cfg['name']} agent failed: {e}")
-        return {"agent": agent_cfg["name"], "error": str(e)}
+        return {
+            "agent": agent_cfg["name"],
+            "base": agent_cfg.get("base_url", ""),
+            "model": agent_cfg.get("model", ""),
+            "error": str(e),
+        }
 
 
 # ---------------------------------------------------------------------------
