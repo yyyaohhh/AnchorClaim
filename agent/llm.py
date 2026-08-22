@@ -34,6 +34,7 @@ import tempfile
 import urllib.error
 import urllib.request
 import uuid
+from collections import Counter
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 
@@ -197,6 +198,33 @@ def entry_to_agent(entry: dict) -> dict:
     }
 
 
+def _is_generic_name(name: str) -> bool:
+    """Labels that don't identify a provider on their own (the defaults for custom
+    / OpenAI-compatible entries)."""
+    low = (name or "").strip().lower()
+    return low == "" or low.startswith("custom api") or low in ("openai-compatible", "openai compatible", "custom")
+
+
+def _disambiguate_names(agents: list[dict]) -> None:
+    """Give each agent a readable, unique display name.
+
+    Generic labels (and label collisions) get the model appended, so three
+    "Custom API" entries read as "Custom API · qwen2.5" / "... · llama3" instead of
+    all showing identically. A numeric suffix is the final fallback for true ties.
+    """
+    counts = Counter(a["name"] for a in agents)
+    for a in agents:
+        if counts[a["name"]] > 1 or _is_generic_name(a["name"]):
+            a["name"] = f"{a['name']} · {a['model']}"
+    recheck = Counter(a["name"] for a in agents)
+    seen: dict[str, int] = {}
+    for a in agents:
+        if recheck[a["name"]] > 1:
+            n = seen.get(a["name"], 0) + 1
+            seen[a["name"]] = n
+            a["name"] = f"{a['name']} #{n}"
+
+
 def configured_agents() -> list[dict]:
     """Every provider that actually has a key, plus env-only vendors.
 
@@ -228,6 +256,7 @@ def configured_agents() -> list[dict]:
                 "model": os.getenv(model_env, default_model).strip(),
             })
             covered.add(kind)
+    _disambiguate_names(agents)
     return agents
 
 

@@ -2205,7 +2205,8 @@ function evidencePanel(R){
 function evAgentErr(e){
   let host='';
   try{ host = new URL(e.base||'').host; }catch(_){ host = e.base||''; }
-  const parts = [e.agent, e.model?('model '+e.model):'', host?('@ '+host):''].filter(Boolean).join(' ');
+  const alreadyHasModel = e.model && String(e.agent||'').includes(String(e.model));
+  const parts = [e.agent, (e.model && !alreadyHasModel)?('model '+e.model):'', host?('@ '+host):''].filter(Boolean).join(' ');
   return `${parts} — ${e.error}`;
 }
 function reasoningPanel(R){
@@ -2340,13 +2341,8 @@ function setRender(providers){
 
 function setNewCard(preset){
   const p = AI_PRESETS[preset];
-  let label = p.label;
-  if(preset==='custom'){
-    const n = Array.from(setListEl.querySelectorAll('.set-label')).filter(i=>i.value.trim().startsWith('Custom API')).length;
-    label = n ? ('Custom API #'+(n+1)) : 'Custom API';
-  }
   const card = { id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-                 kind:p.kind, label:label, base_url:p.base, model:p.model, api_key_set:false, api_key_hint:'' };
+                 kind:p.kind, label:p.label, base_url:p.base, model:p.model, api_key_set:false, api_key_hint:'' };
   const wrap = document.createElement('div');
   wrap.innerHTML = setCardHTML(card);
   const root = wrap.firstElementChild;
