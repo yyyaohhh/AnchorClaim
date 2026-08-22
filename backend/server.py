@@ -29,6 +29,7 @@ from samples import SAMPLE_VOYAGES            # noqa: E402
 from fleet import fleet_overview, build_fleet, PORTS as PORT_COORDS  # noqa: E402
 from qna_agent import ask_question            # noqa: E402
 from step1_parse_contract import parse_contract  # noqa: E402
+from llm import chat_json, is_configured, public_status, resolve, save_settings  # noqa: E402
 from lifecycle import (                       # noqa: E402
     contract_template, funding_status, sign, reset_funding, monitoring_log,
 )
@@ -305,6 +306,54 @@ def clear_cache():
             except OSError:
                 pass
     return jsonify({"cleared": removed})
+
+
+@app.route("/api/settings", methods=["GET"])
+@app.route("/settings", methods=["GET"])
+def get_settings():
+    """Current LLM provider config for the Settings page (API key never echoed back)."""
+    return jsonify(public_status())
+
+
+@app.route("/api/settings", methods=["POST"])
+@app.route("/settings", methods=["POST"])
+def set_settings():
+    """Persist the LLM provider config chosen in the Settings page.
+
+    Body: {provider: "openai"|"claude"|"custom", base_url?, api_key?, model?}
+    """
+    body = request.get_json(silent=True) or {}
+    save_settings(body)
+    return jsonify({"saved": public_status()})
+
+
+@app.route("/api/settings/test", methods=["POST"])
+@app.route("/settings/test", methods=["POST"])
+def test_settings():
+    """Ping the provider config the Settings page is currently editing.
+
+    Accepts the same body as POST /api/settings; tests the in-form values, falling
+    back to the saved key when the key field is left blank (same provider).
+    """
+    body = request.get_json(silent=True) or {}
+    cfg = {
+        "provider": str(body.get("provider") or "").strip(),
+        "base_url": str(body.get("base_url") or "").strip(),
+        "api_key": str(body.get("api_key") or "").strip(),
+        "model": str(body.get("model") or "").strip(),
+    }
+    if not cfg["api_key"]:
+        saved = resolve()
+        if (not cfg["provider"]) or cfg["provider"] == saved["provider"]:
+            cfg["api_key"] = saved["api_key"]
+    cfg = resolve(cfg)
+    if not is_configured(cfg):
+        return jsonify({"ok": False, "error": "No API key configured"}), 400
+    try:
+        chat_json('Reply with the JSON object {"ok": true}. Return raw JSON only.', settings=cfg)
+        return jsonify({"ok": True, "provider": cfg["provider"], "model": cfg["model"]})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 502
 
 
 if __name__ == "__main__":

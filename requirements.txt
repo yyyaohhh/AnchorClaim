@@ -2,9 +2,10 @@
 flask>=2.0
 python-dotenv>=1.0   # loads .env so API keys / RPC config take effect without exporting env vars
 
-# Optional — enable real contract parsing (local only; not needed on Vercel).
-# Uncomment to install, then run `ollama pull qwen2.5`.
-# ollama
+# Optional — enable real contract parsing / evidence reasoning via a hosted LLM.
+# Pick a provider in the in-app Settings page (OpenAI / Claude / Custom API), or set
+# OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY in .env. No SDK required —
+# the pipeline issues plain HTTPS calls and falls back to a deterministic mock.
 
 # Optional — enable real on-chain settlement (local only; not needed on Vercel).
 # Uncomment to install.

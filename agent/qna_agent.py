@@ -157,6 +157,20 @@ def ask_question(question: str, history=None, base_url=None, api_key=None, model
     key = api_key or os.environ.get("ANCHORCLAIM_QNA_API_KEY")
     model_name = (model or os.environ.get("ANCHORCLAIM_QNA_MODEL") or DEFAULT_MODEL).strip()
 
+    # Fall back to the global Settings-page provider (OpenAI / Custom) when this
+    # widget has nothing configured. Claude is skipped here because the Q&A widget
+    # speaks the OpenAI chat-completions format.
+    if not key and not supplied_base:
+        try:
+            from llm import resolve as _llm_resolve  # noqa: PLC0415
+            g = _llm_resolve()
+            if g.get("api_key") and g.get("kind") == "openai":
+                base = _normalize_base(g["base_url"])
+                key = g["api_key"]
+                model_name = (g["model"] or model_name).strip()
+        except Exception:  # noqa: BLE001
+            pass
+
     # Offline fallback only when nothing is configured at all. A custom base URL
     # without a key is a valid config (e.g. a local Ollama /v1 endpoint).
     if not key and not supplied_base:

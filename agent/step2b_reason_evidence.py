@@ -1,8 +1,8 @@
 """
-Step 2b: Three independent AI agents reason over the multi-source evidence and vote.
+Step 2b: Independent AI agents reason over the multi-source evidence and vote.
 
 evidence_sources.py only fetches six independent signals (AIS, weather, satellite,
-port community, NOR, news). This step is where the agent actually reasons over them,
+port community, NOR, news). This step is where the agents actually reason over them,
 deciding two things: for each suspension the charterer claims, is it corroborated by
 an independent source, so it should reduce the counted laytime? And, weighing AIS
 together with satellite/port-community records, is the submitted port-log (SoF)
@@ -10,14 +10,15 @@ duration itself trustworthy? AIS/SoF consistency is just one more claim the agen
 vote on alongside the rest of the evidence — not a separate hardcoded threshold check
 that bypasses reasoning.
 
-Three agents — each calling a different LLM vendor (OpenAI, Anthropic, Google Gemini)
-— independently review the same evidence and vote on every claim. A claim is only
-corroborated if a strict majority of the agents that actually responded agree, so a
-single vendor's mistake or bias can't flip the audit alone. An agent whose API key is
-not configured (or whose call fails) is simply excluded from that vote.
+Each configured agent independently reviews the same evidence and votes on every claim.
+A claim is only corroborated if a strict majority of the agents that actually responded
+agree, so a single vendor's mistake or bias can't flip the audit alone. Agents are
+discovered from the Settings page (primary provider: OpenAI / Claude / Custom) plus the
+per-vendor environment keys (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY); an
+agent whose key is missing, or whose call fails, is simply excluded from that vote.
 
-If none of the three vendor keys are configured (or all calls fail), _simulated_vote()
-below stands in: it derives the same corroborated/not-corroborated verdict from the
+If none of the vendors are configured (or all calls fail), _simulated_vote() below
+stands in: it derives the same corroborated/not-corroborated verdict from the
 deterministic evidence rule, then phrases it three ways as if each vendor had reached
 it independently. This keeps the offline/demo experience showing the intended
 multi-agent UI without requiring API keys — it is not a real second opinion, just the
@@ -27,17 +28,11 @@ one deterministic verdict in three voices.
 from __future__ import annotations
 
 import json
-import os
 import re
 import urllib.error
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-
-REQUEST_TIMEOUT = 30
+from llm import complete, configured_agents
 
 
 def _extract_json(text: str) -> dict:
@@ -48,72 +43,18 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
-def _post_json(url: str, payload: dict, headers: dict) -> dict:
-    req = urllib.request.Request(
-        url, data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers}, method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-# ---------------------------------------------------------------------------
-# The three vendor agents. Each takes the shared prompt and returns the parsed
-# {"suspension_decisions": [...], "ais_sof_note": "..."} verdict.
-# ---------------------------------------------------------------------------
-def _call_openai(prompt: str, api_key: str) -> dict:
-    body = _post_json(
-        "https://api.openai.com/v1/chat/completions",
-        {"model": OPENAI_MODEL, "messages": [{"role": "user", "content": prompt}],
-         "response_format": {"type": "json_object"}},
-        {"Authorization": f"Bearer {api_key}"},
-    )
-    return _extract_json(body["choices"][0]["message"]["content"])
-
-
-def _call_anthropic(prompt: str, api_key: str) -> dict:
-    body = _post_json(
-        "https://api.anthropic.com/v1/messages",
-        {"model": ANTHROPIC_MODEL, "max_tokens": 1024,
-         "messages": [{"role": "user", "content": prompt}]},
-        {"x-api-key": api_key, "anthropic-version": "2023-06-01"},
-    )
-    return _extract_json(body["content"][0]["text"])
-
-
-def _call_gemini(prompt: str, api_key: str) -> dict:
-    body = _post_json(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}",
-        {"contents": [{"parts": [{"text": prompt}]}],
-         "generationConfig": {"response_mime_type": "application/json"}},
-        {},
-    )
-    return _extract_json(body["candidates"][0]["content"]["parts"][0]["text"])
-
-
-AGENTS = {
-    "openai": (_call_openai, "OPENAI_API_KEY"),
-    "anthropic": (_call_anthropic, "ANTHROPIC_API_KEY"),
-    "gemini": (_call_gemini, "GEMINI_API_KEY"),
-}
-
-
-def _run_agent(name: str, prompt: str) -> dict | None:
-    caller, env_var = AGENTS[name]
-    api_key = os.getenv(env_var)
-    if not api_key:
-        return None  # agent not configured — excluded from the vote, not a "no" vote
+def _run_agent(agent_cfg: dict, prompt: str) -> dict | None:
     try:
-        verdict = caller(prompt, api_key)
-        verdict["agent"] = name
+        verdict = _extract_json(complete(agent_cfg, prompt))
+        verdict["agent"] = agent_cfg["name"]
         return verdict
     except (urllib.error.URLError, KeyError, ValueError, TimeoutError) as e:
-        print(f"[step2b] {name} agent failed: {e}")
-        return {"agent": name, "error": str(e)}
+        print(f"[step2b] {agent_cfg['name']} agent failed: {e}")
+        return {"agent": agent_cfg["name"], "error": str(e)}
 
 
 # ---------------------------------------------------------------------------
-# Simulated vote (no agent API keys configured, or all three calls failed)
+# Simulated vote (no agent API keys configured, or all calls failed)
 # ---------------------------------------------------------------------------
 PERSONA_PHRASING = {
     "openai": lambda why: f"Cross-referencing the evidence feed: {why}.",
@@ -175,7 +116,7 @@ def _simulated_vote(suspension_events: list, sources: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Prompt shared by all three agents
+# Prompt shared by all agents
 # ---------------------------------------------------------------------------
 def _build_prompt(contract: dict, suspension_events: list, sources: dict) -> str:
     return f"""
@@ -260,21 +201,21 @@ def _vote_ais_sof(agent_verdicts: list) -> tuple[bool, str, list]:
 
 
 def reason_evidence(contract: dict, voyage: dict, sources: dict) -> dict:
-    """Run the three vendor agents over the six independent sources and vote on which
+    """Run the configured agents over the six independent sources and vote on which
     claimed suspensions actually happened, and on whether the AIS/SoF timeline itself
     holds up. Returns per-claim corroboration (feeding the laytime deduction in step 2),
     each agent's individual vote, and the AIS/SoF consistency verdict (feeding the
-    dispute check)."""
+    trusted-hours decision)."""
     suspension_events = voyage.get("suspension_events") or []
 
-    configured = [name for name in AGENTS if os.getenv(AGENTS[name][1])]
-    if not configured:
+    agents = configured_agents()
+    if not agents:
         print("[step2b] no agent API keys configured — simulating the multi-agent vote")
         return _simulated_vote(suspension_events, sources)
 
     prompt = _build_prompt(contract, suspension_events, sources)
-    with ThreadPoolExecutor(max_workers=len(configured)) as pool:
-        raw_results = list(pool.map(lambda name: _run_agent(name, prompt), configured))
+    with ThreadPoolExecutor(max_workers=len(agents)) as pool:
+        raw_results = list(pool.map(lambda a: _run_agent(a, prompt), agents))
 
     agent_verdicts = [r for r in raw_results if r and "error" not in r]
     errors = [r for r in raw_results if r and "error" in r]
