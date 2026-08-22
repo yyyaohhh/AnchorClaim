@@ -129,9 +129,18 @@ def audit_voyage(voyage_id, voyage, do_settle=True, contract_override=None):
     result["verdict"] = {**base_verdict, "type": "demurrage", "settled": True}
 
     # --- Step 3: settle on-chain ---
+    # The hash folds in every stage of the audit trail — the parsed contract, all six
+    # gathered evidence sources, every agent's vote, and the final receipt — so the
+    # on-chain record proves the whole decision, not just its dollar amount.
     if do_settle:
-        evidence = {"contract": contract, "ais_port_log": voyage["ais_port_log"], "receipt": receipt}
-        tx = settle_on_chain(voyage_id, receipt, evidence)
+        onchain_evidence = {
+            "contract": contract,
+            "ais_port_log": voyage["ais_port_log"],
+            "evidence_sources": evidence["sources"],
+            "agent_votes": reasoning,
+            "receipt": receipt,
+        }
+        tx = settle_on_chain(voyage_id, receipt, onchain_evidence)
         result["settlement"] = tx
         steps.append({"name": "settle", "output": tx})
 

@@ -528,6 +528,8 @@
   .fund-sig button{margin-top:10px;width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font:600 12.5px var(--sans);cursor:pointer}
   .fund-sig button:hover{filter:brightness(1.08)}
   .fund-sig.signed{background:var(--teal-soft);border-color:var(--teal)}
+  .fund-sig .fs-wait{margin-top:10px;font:600 12px var(--sans);color:var(--faint);padding:8px 0}
+  .fund-sig .fs-you{font:650 10px var(--sans);color:var(--accent);letter-spacing:.3px}
   .monitor-log{margin-top:14px;display:flex;flex-direction:column;gap:6px}
   .monitor-day{display:grid;grid-template-columns:70px 90px 1fr;gap:10px;align-items:center;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
   .monitor-day .md-done{color:var(--teal);font-weight:700}
@@ -851,13 +853,13 @@
       <div class="benefits">
         <div class="benefit-list">
           <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><h4>No manual reconciliation</h4><p>The agent replaces weeks of back-and-forth with a repeatable, second-scale computation.</p></div></div>
-          <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><h4>Fraud-resistant by design</h4><p>SoF vs AIS cross-checks verify every port log before funds move, so falsified logs can't inflate a settlement.</p></div></div>
+          <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><h4>Fraud-resistant by design</h4><p>SoF vs AIS cross-checks and six independent evidence sources — weather, satellite, port community, NOR and news — corroborate every port log before funds move, so no single falsified log can inflate a settlement.</p></div></div>
           <div class="benefit reveal"><div class="benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div><div><h4>Fully automated signing</h4><p>Every result is signed by evidence and settled on-chain in seconds — no queues, no manual approvers.</p></div></div>
         </div>
         <div class="sec-card reveal">
           <div class="k">On-chain evidence</div>
           <h2 style="font-family:var(--display);font-size:22px;font-weight:800;color:var(--ink);margin-top:10px">One hash. Full audit trail.</h2>
-          <p style="margin-top:8px">The contract, port log and AIS track are folded into a single SHA-256 evidence hash, written to the escrow contract alongside the amount.</p>
+          <p style="margin-top:8px">The parsed contract, all six evidence sources, and every agent's vote are folded into a single SHA-256 evidence hash, written to the escrow contract alongside the amount — the full chain from clause to verdict, not just the number.</p>
           <div class="hash">0x9c41ef2e7b01a8c3d45e6f0a21bd9e88c7a54f1b</div>
           <p style="font-family:var(--mono);font-size:12px;color:var(--faint)">keccak256(voyageId) → settle(hours, amount, evidenceHash)</p>
         </div>
@@ -1015,6 +1017,7 @@
           <h3>Live fleet status</h3>
           <div class="tl-legend">
             <span><i style="background:var(--red)"></i>Demurrage</span>
+            <span><i style="background:var(--accent)"></i>Despatch</span>
             <span><i style="background:var(--teal)"></i>Clear</span>
           </div>
         </div>
@@ -1991,12 +1994,18 @@ function renderFundPanel(id, data){
   const {template, status, monitoring}=data;
   const t=template.args;
   const templateText=`fund(\n  id: "${t.id}",\n  shipowner: ${t.shipowner},\n  freight: ${fmt(t.freight)},\n  deposit: ${fmt(t.deposit)},\n  laytimeHours: ${t.laytimeHours}\n)`;
+  const myParty = ROLE==='owner' ? 'shipowner' : 'charterer';
   const sigCard=(party,label)=>{
     const s=status.signatures[party];
+    const canSign = party===myParty;
+    let action;
+    if(s) action=`<div class="fs-sig">${s.signature}</div>`;
+    else if(canSign) action=`<button data-party="${party}">Sign as ${label}</button>`;
+    else action=`<div class="fs-wait">Waiting for the ${label.toLowerCase()} to sign — switch role to sign as them.</div>`;
     return `<div class="fund-sig ${s?'signed':''}">
-      <div class="fs-role">${label}</div>
+      <div class="fs-role">${label}${canSign?' <span class="fs-you">(you)</span>':''}</div>
       <div class="fs-wallet">${s?s.wallet:'not signed yet'}</div>
-      ${s?`<div class="fs-sig">${s.signature}</div>`:`<button data-party="${party}">Sign as ${label}</button>`}
+      ${action}
     </div>`;
   };
   const monitorHtml=(monitoring||[]).length
