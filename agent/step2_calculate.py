@@ -1,11 +1,12 @@
 """
 Step 2: Calculate demurrage.
 
-Computes the penalty from the parsed contract terms and the port log. Suspension
-events (bad weather, strikes, etc.) are deducted against the contract's
-suspension_conditions, so only counted laytime is charged. A cross-check compares
-the port-log (Statement of Facts) duration against the actual AIS in-port hours and
-flags a large delta as a dispute. Returns a structured receipt for on-chain settlement.
+Computes the penalty from the parsed contract terms and the port log. Laytime counts
+from the Notice of Readiness (NOR tendered), not from berthing — that's when the
+charter party clock actually starts, whether or not the vessel is alongside yet.
+Suspension events (bad weather, strikes, etc.) are deducted against the contract's
+suspension_conditions, so only counted laytime is charged. Returns a structured
+receipt for on-chain settlement.
 """
 
 from __future__ import annotations
@@ -19,16 +20,25 @@ def _parse(ts: str) -> datetime:
     return datetime.strptime(ts, TIME_FORMAT)
 
 
-def calculate_demurrage(contract: dict, ais_port_log: dict, suspension_events: list | None = None) -> dict:
+def gross_duration_hours(ais_port_log: dict) -> float:
+    """Laytime runs from NOR tendered to completion (departure), not from berthing —
+    a vessel waiting at anchorage after NOR is still on the charterer's clock."""
+    nor = _parse(ais_port_log["nor_tendered"])
+    departure = _parse(ais_port_log["departure_time"])
+    return (departure - nor).total_seconds() / 3600
+
+
+def calculate_demurrage(contract: dict, ais_port_log: dict, suspension_events: list | None = None,
+                         gross_hours_override: float | None = None) -> dict:
     """
     contract: the contract dict parsed in step 1
-    ais_port_log: port record containing berthing_time / departure_time
+    ais_port_log: port record containing nor_tendered / departure_time
     suspension_events: [{"reason": "bad weather", "start": "...", "end": "..."}] stoppage windows
+    gross_hours_override: use this instead of the submitted log's NOR-to-departure span —
+        set when the agent vote decided the submitted log isn't trustworthy, so the
+        independently-verified AIS hours are charged instead of the falsified log.
     """
-    berthing = _parse(ais_port_log["berthing_time"])
-    departure = _parse(ais_port_log["departure_time"])
-
-    gross_hours = (departure - berthing).total_seconds() / 3600
+    gross_hours = gross_hours_override if gross_hours_override is not None else gross_duration_hours(ais_port_log)
 
     # deduct stoppage time per the contract's exclusion conditions
     allowed_conditions = [c.lower() for c in contract.get("suspension_conditions", [])]
@@ -78,6 +88,7 @@ if __name__ == "__main__":
     ais_port_log = {
         "vessel_name": "MV Ocean Star",
         "arrival_anchorage": "2026/08/10 08:00:00",
+        "nor_tendered": "2026/08/10 09:00:00",
         "berthing_time": "2026/08/10 12:00:00",
         "departure_time": "2026/08/14 12:00:00",
     }

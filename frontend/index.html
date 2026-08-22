@@ -505,6 +505,31 @@
   .ev-name{font-weight:600;color:var(--ink)}
   .ev-note{color:var(--muted);font-family:var(--mono);font-size:11.5px;line-height:1.5}
   .ev-gap{margin-top:12px;padding:10px 13px;background:var(--gold-soft);border:1px solid var(--gold);border-radius:9px;font:500 12px var(--mono);color:var(--gold);line-height:1.5}
+  .ev-votes{margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+  .ev-vote{font:600 10.5px var(--mono);border-radius:999px;padding:2px 8px}
+  .ev-vote.ok{background:var(--teal-soft);color:var(--teal)}
+  .ev-vote.warn{background:var(--gold-soft);color:var(--gold)}
+
+  /* Verify & Fund panel */
+  .fund-panel{margin-top:16px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-sm);overflow:hidden}
+  .fund-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);font:700 13.5px var(--sans);color:var(--ink)}
+  .fund-badge{font:600 11px var(--mono);border-radius:999px;padding:4px 11px;white-space:nowrap}
+  .fund-badge.pending{background:var(--gold-soft);color:var(--gold)}
+  .fund-badge.done{background:var(--teal-soft);color:var(--teal)}
+  .fund-body{padding:16px 18px}
+  .fund-template{font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:12px 14px;line-height:1.7;white-space:pre-wrap;color:var(--ink)}
+  .fund-sigs{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .fund-sig{flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .fund-sig .fs-role{font:700 12.5px var(--sans);color:var(--ink)}
+  .fund-sig .fs-wallet{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+  .fund-sig .fs-sig{font-family:var(--mono);font-size:11px;color:var(--teal);margin-top:6px;word-break:break-all}
+  .fund-sig button{margin-top:10px;width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font:600 12.5px var(--sans);cursor:pointer}
+  .fund-sig button:hover{filter:brightness(1.08)}
+  .fund-sig.signed{background:var(--teal-soft);border-color:var(--teal)}
+  .monitor-log{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+  .monitor-day{display:grid;grid-template-columns:70px 90px 1fr;gap:10px;align-items:center;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .monitor-day .md-done{color:var(--teal);font-weight:700}
+  .fund-reset{margin-top:12px;background:none;border:none;color:var(--muted);font:500 11.5px var(--sans);cursor:pointer;text-decoration:underline}
 
   .idle{color:var(--faint);font-family:var(--mono);font-size:13px;text-align:center;padding:70px 20px;line-height:1.9}
   .idle code{background:var(--surface-2);padding:2px 8px;border-radius:6px;color:var(--accent)}
@@ -759,8 +784,8 @@
       </div>
       <div class="pipeline">
         <div class="pipe-step reveal"><div class="pipe-num">01</div><h4>Parse charter party</h4><p>LLM extraction of laytime, rate and exclusions into structured JSON.</p></div>
-        <div class="pipe-step reveal"><div class="pipe-num">02</div><h4>Fetch AIS track</h4><p>Pull the vessel's berthed-to-departure movement window.</p></div>
-        <div class="pipe-step reveal"><div class="pipe-num">03</div><h4>Cross-check records</h4><p>Reconcile the port log against AIS; flag any conflict.</p></div>
+        <div class="pipe-step reveal"><div class="pipe-num">02</div><h4>Gather multi-source evidence</h4><p>AIS, weather, satellite, port community, NOR and news — six independent sources, AIS included.</p></div>
+        <div class="pipe-step reveal"><div class="pipe-num">03</div><h4>AI agents vote</h4><p>Three independent agents weigh all six sources and decide what's corroborated.</p></div>
         <div class="pipe-step reveal"><div class="pipe-num">04</div><h4>Compute demurrage</h4><p>Deduct suspensions and calculate the exact penalty owed.</p></div>
         <div class="pipe-step reveal"><div class="pipe-num">05</div><h4>Settle on-chain</h4><p>Submit evidence hash + amount to escrow for settlement.</p></div>
       </div>
@@ -1789,7 +1814,22 @@ function markCardCached(id, verdictType){
 }
 
 const fmt = n => '$'+Number(n||0).toLocaleString('en-US');
-const STEP_TITLES = ['Parse charter party','Fetch AIS track','Cross-check port log vs AIS','Compute demurrage','Settle on-chain'];
+
+// Step-animation body text for "Gather multi-source evidence" and "AI agents vote" —
+// used by both showResult() (cached) and runAudit() (live).
+function stepEvidenceBody(R){
+  const ev=R.evidence||{};
+  return `${ev.sources_ok}/${ev.sources_total} independent sources corroborate\nAIS, weather, satellite, port community, NOR, news`;
+}
+function stepVoteBody(R){
+  const rs=R.reasoning||{}, ck=R.check||{};
+  const who = rs.mode==='multi-agent-vote' ? `${(rs.agents||[]).length} AI agent(s) voted (${(rs.agents||[]).join(', ')})` : 'deterministic fallback';
+  const susp = (rs.suspension_decisions||[]).length
+    ? `\n${rs.suspension_decisions.filter(d=>d.corroborated).length}/${rs.suspension_decisions.length} claimed suspensions corroborated`
+    : '';
+  return `${who}\nAIS/SoF: ${ck.consistent?'consistent':'overridden with AIS'} (${ck.sof_hours}h vs ${ck.ais_hours}h)${susp}`;
+}
+const STEP_TITLES = ['Parse charter party','Gather multi-source evidence','AI agents vote','Compute demurrage','Settle on-chain'];
 
 /* ---------------- Select / detail ---------------- */
 function select(id){
@@ -1821,6 +1861,7 @@ function select(id){
         </div>
       </div>
     </div>
+    <div id="fundPanel"></div>
     <div class="steps" id="steps"></div>
     <div id="result"></div>`;
   document.getElementById('backMap').onclick=backToMap;
@@ -1834,8 +1875,71 @@ function select(id){
   document.getElementById('cpRun').onclick=()=>runAudit(id, document.getElementById('cpText').value);
   document.getElementById('cpReset').onclick=()=>{ document.getElementById('cpText').value=(v.contract_text||'').trim(); };
 
+  const alreadyRun = !!AUDIT[id] || !!v.cached;
+  if(alreadyRun){
+    // already funded and audited in an earlier run — don't re-block on signatures
+    document.getElementById('fundPanel').innerHTML='';
+  } else {
+    document.getElementById('runBtn').disabled=true;
+    loadFundPanel(id);
+  }
+
   if(AUDIT[id]){ showResult(AUDIT[id]); document.getElementById('runBtn').innerHTML=playSvg+' Re-run'; }
   else { renderSteps(STEP_TITLES, -1); document.getElementById('result').innerHTML=''; }
+}
+
+/* ---------------- Verify & Fund ---------------- */
+async function loadFundPanel(id){
+  const panel=document.getElementById('fundPanel'); if(!panel) return;
+  panel.innerHTML=`<div class="fund-panel"><div class="fund-head">Verify &amp; Fund<span class="fund-badge pending">loading…</span></div></div>`;
+  let data;
+  try{ data=await (await fetch(API+"/api/fund/"+id)).json(); }
+  catch(e){ panel.innerHTML=''; return; }
+  renderFundPanel(id, data);
+}
+
+function renderFundPanel(id, data){
+  const panel=document.getElementById('fundPanel'); if(!panel) return;
+  const {template, status, monitoring}=data;
+  const t=template.args;
+  const templateText=`fund(\n  id: "${t.id}",\n  shipowner: ${t.shipowner},\n  freight: ${fmt(t.freight)},\n  deposit: ${fmt(t.deposit)},\n  laytimeHours: ${t.laytimeHours}\n)`;
+  const sigCard=(party,label)=>{
+    const s=status.signatures[party];
+    return `<div class="fund-sig ${s?'signed':''}">
+      <div class="fs-role">${label}</div>
+      <div class="fs-wallet">${s?s.wallet:'not signed yet'}</div>
+      ${s?`<div class="fs-sig">${s.signature}</div>`:`<button data-party="${party}">Sign as ${label}</button>`}
+    </div>`;
+  };
+  const monitorHtml=(monitoring||[]).length
+    ? `<div class="monitor-log">${monitoring.map(m=>`<div class="monitor-day"><span>Day ${m.day}</span><span>${m.date}</span><span class="${m.status.includes('departed')?'md-done':''}">${m.status}</span></div>`).join('')}</div>`
+    : '';
+  panel.innerHTML=`<div class="fund-panel">
+    <div class="fund-head">Verify &amp; Fund<span class="fund-badge ${status.funded?'done':'pending'}">${status.funded?'Funded ✓':'Awaiting signatures'}</span></div>
+    <div class="fund-body">
+      <div class="fund-template">${templateText}</div>
+      <div class="fund-sigs">${sigCard('charterer','Charterer')}${sigCard('shipowner','Shipowner')}</div>
+      ${monitorHtml}
+      ${status.funded?`<button class="fund-reset" id="fundReset">Reset signatures (replay demo)</button>`:''}
+    </div>
+  </div>`;
+  panel.querySelectorAll('button[data-party]').forEach(btn=>{ btn.onclick=()=>signParty(id, btn.dataset.party); });
+  const resetBtn=document.getElementById('fundReset');
+  if(resetBtn) resetBtn.onclick=()=>resetFunding(id);
+  const runBtn=document.getElementById('runBtn');
+  if(runBtn) runBtn.disabled=!status.funded;
+}
+
+async function signParty(id, party){
+  await fetch(API+"/api/fund/"+id+"/sign", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({party})});
+  const full=await (await fetch(API+"/api/fund/"+id)).json();
+  renderFundPanel(id, full);
+  if(full.status.funded) toast('Escrow funded — both signatures collected.','ok');
+}
+
+async function resetFunding(id){
+  await fetch(API+"/api/fund/"+id, {method:"DELETE"});
+  loadFundPanel(id);
 }
 
 function backToMap(){
@@ -1854,8 +1958,8 @@ function showResult(R){
   const confTag=(f)=>{const val=conf[f];if(val===undefined)return '';return `  [confidence ${(val*100).toFixed(0)}%]`;};
   const bodies=[
     `Laytime allowed: ${c.laytime_hours}h${confTag('laytime_hours')}\nRate: ${fmt(c.demurrage_rate_usd_per_day)}/day${confTag('demurrage_rate_usd_per_day')}\nSuspension clauses: ${conds}${confTag('suspension_conditions')}`,
-    `In-port hours (AIS): ${ck.ais_hours}h\nBerthed then departed, verified against port log`,
-    `Port log ${ck.sof_hours}h vs AIS ${ck.ais_hours}h\nDelta ${ck.delta_hours}h -> ${ck.consistent?'within tolerance, consistent':'over tolerance, CONFLICT'}`,
+    stepEvidenceBody(R),
+    stepVoteBody(R),
     `Gross ${rc.gross_duration_hours}h - excluded ${rc.excluded_hours}h -> counted ${rc.counted_laytime_hours}h\nvs allowed ${c.laytime_hours}h -> excess ${rc.excess_time_hours}h`,
     (R.settlement?`Attestation generated, submitted to escrow contract\n${R.settlement.chain}`:`No demurrage - final balance released`),
   ];
@@ -1918,8 +2022,8 @@ async function runAudit(id, editedContract){
 
   const bodies=[
     `Laytime allowed: ${c.laytime_hours}h${confTag('laytime_hours')}\nRate: ${fmt(c.demurrage_rate_usd_per_day)}/day${confTag('demurrage_rate_usd_per_day')}\nSuspension clauses: ${conds}${confTag('suspension_conditions')}`,
-    `In-port hours (AIS): ${ck.ais_hours}h\nBerthed then departed, verified against port log`,
-    `Port log ${ck.sof_hours}h vs AIS ${ck.ais_hours}h\nDelta ${ck.delta_hours}h -> ${ck.consistent?'within tolerance, consistent':'over tolerance, CONFLICT'}`,
+    stepEvidenceBody(R),
+    stepVoteBody(R),
     `Gross ${rc.gross_duration_hours}h - excluded ${rc.excluded_hours}h -> counted ${rc.counted_laytime_hours}h\nvs allowed ${c.laytime_hours}h -> excess ${rc.excess_time_hours}h`,
     (R.settlement ? `Attestation generated, submitted to escrow contract\n${R.settlement.chain}` : `No demurrage - final balance released`),
   ];
@@ -2019,17 +2123,30 @@ function evidencePanel(R){
   return `<div class="evidence"><div class="ev-head">Multi-source verification<span class="ev-score">${score}</span></div>${body}${gaps}</div>`;
 }
 function reasoningPanel(R){
-  const rs=R.reasoning; if(!rs || !(rs.suspension_decisions||[]).length) return '';
+  const rs=R.reasoning;
+  const hasSuspensions=(rs?.suspension_decisions||[]).length>0;
+  const hasAisSofVotes=(rs?.ais_sof_votes||[]).length>0;
+  if(!rs || (!hasSuspensions && !hasAisSofVotes)) return '';
   const owner = ROLE==='owner';
-  const modeLabel = rs.mode==='llm' ? 'reasoned by LLM' : 'deterministic fallback (no LLM)';
+  const modeLabel = rs.mode==='multi-agent-vote'
+    ? `voted by ${(rs.agents||[]).length} AI agent(s): ${(rs.agents||[]).join(', ')}`
+    : 'deterministic fallback (no agent API keys configured)';
+  const votesHtml = votes => votes.length
+    ? `<div class="ev-votes">${votes.map(v=>`<span class="ev-vote ${v.ok?'ok':'warn'}" title="${v.title}">${v.agent}: ${v.label}</span>`).join(' ')}</div>` : '';
   const rows = rs.suspension_decisions.map(d=>{
     const note = d.corroborated
       ? (owner ? 'deducted — reduces your receivable' : 'deducted — reduces your charge')
       : (owner ? 'NOT deducted — you still collect' : 'NOT deducted — you still pay');
-    return `<div class="ev-row"><span class="ev-icon ${d.corroborated?'ok':'warn'}">${d.corroborated?'✓':'!'}</span><span class="ev-name">${d.reason}</span><span class="ev-note">${note} — ${d.explanation}</span></div>`;
+    const votes = votesHtml((d.votes||[]).map(v=>({agent:v.agent, ok:v.corroborated, label:v.corroborated?'yes':'no', title:v.explanation})));
+    return `<div class="ev-row"><span class="ev-icon ${d.corroborated?'ok':'warn'}">${d.corroborated?'✓':'!'}</span><span class="ev-name">${d.reason}</span><span class="ev-note">${note} — ${d.explanation}${votes}</span></div>`;
   }).join('');
-  const sofNote = rs.ais_sof_note ? `<div class="ev-gap">AIS/SoF timeline check: ${rs.ais_sof_note}</div>` : '';
-  return `<div class="evidence"><div class="ev-head">Suspension reasoning<span class="ev-score">${modeLabel}</span></div>${rows}${sofNote}</div>`;
+  const aisSofRow = hasAisSofVotes ? (()=>{
+    const votes = votesHtml(rs.ais_sof_votes.map(v=>({agent:v.agent, ok:v.consistent, label:v.consistent?'consistent':'not consistent', title:v.note})));
+    return `<div class="ev-row"><span class="ev-icon ${rs.ais_sof_consistent?'ok':'warn'}">${rs.ais_sof_consistent?'✓':'!'}</span><span class="ev-name">AIS/SoF timeline</span><span class="ev-note">${rs.ais_sof_consistent?'submitted log trusted':'submitted log overridden with AIS'} — ${rs.ais_sof_note}${votes}</span></div>`;
+  })() : '';
+  const gaps=(rs.agent_errors||[]).length
+    ? `<div class="ev-gap">⚠ ${rs.agent_errors.length} agent(s) failed to respond: ${rs.agent_errors.map(e=>`${e.agent} (${e.error})`).join('; ')}</div>` : '';
+  return `<div class="evidence"><div class="ev-head">Agent reasoning<span class="ev-score">${modeLabel}</span></div>${aisSofRow}${rows}${gaps}</div>`;
 }
 function renderResult(R){
   const res=document.getElementById('result');
