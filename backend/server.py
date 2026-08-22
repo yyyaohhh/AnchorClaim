@@ -29,7 +29,7 @@ from samples import SAMPLE_VOYAGES            # noqa: E402
 from fleet import fleet_overview, build_fleet, PORTS as PORT_COORDS  # noqa: E402
 from qna_agent import ask_question            # noqa: E402
 from step1_parse_contract import parse_contract  # noqa: E402
-from llm import chat_json, is_configured, public_status, resolve, save_settings  # noqa: E402
+from llm import chat_json, entry_to_agent, load_settings, public_status, save_settings  # noqa: E402
 from lifecycle import (                       # noqa: E402
     contract_template, funding_status, sign, reset_funding, monitoring_log,
 )
@@ -318,9 +318,10 @@ def get_settings():
 @app.route("/api/settings", methods=["POST"])
 @app.route("/settings", methods=["POST"])
 def set_settings():
-    """Persist the LLM provider config chosen in the Settings page.
+    """Persist the LLM provider list chosen in the Settings page.
 
-    Body: {provider: "openai"|"claude"|"custom", base_url?, api_key?, model?}
+    Body: {providers: [{id?, label?, kind: "openai"|"claude", base_url?, model?,
+    api_key?, clear_key?}]}. Several providers can coexist and all vote.
     """
     body = request.get_json(silent=True) or {}
     save_settings(body)
@@ -330,30 +331,34 @@ def set_settings():
 @app.route("/api/settings/test", methods=["POST"])
 @app.route("/settings/test", methods=["POST"])
 def test_settings():
-    """Ping the provider config the Settings page is currently editing.
+    """Ping every provider entry the Settings page is currently editing.
 
-    Accepts the same body as POST /api/settings; tests the in-form values, falling
-    back to the saved key when the key field is left blank (same provider).
+    Body: {providers: [{id?, label?, kind, base_url?, model?, api_key?, clear_key?}]}.
+    Returns one {name, ok, error?} per entry. A blank key falls back to the saved
+    key for the same id so a user can re-test a provider without retyping it.
     """
     body = request.get_json(silent=True) or {}
-    cfg = {
-        "provider": str(body.get("provider") or "").strip(),
-        "base_url": str(body.get("base_url") or "").strip(),
-        "api_key": str(body.get("api_key") or "").strip(),
-        "model": str(body.get("model") or "").strip(),
-    }
-    if not cfg["api_key"]:
-        saved = resolve()
-        if (not cfg["provider"]) or cfg["provider"] == saved["provider"]:
-            cfg["api_key"] = saved["api_key"]
-    cfg = resolve(cfg)
-    if not is_configured(cfg):
-        return jsonify({"ok": False, "error": "No API key configured"}), 400
-    try:
-        chat_json('Reply with the JSON object {"ok": true}. Return raw JSON only.', settings=cfg)
-        return jsonify({"ok": True, "provider": cfg["provider"], "model": cfg["model"]})
-    except Exception as e:  # noqa: BLE001
-        return jsonify({"ok": False, "error": str(e)}), 502
+    raw = body.get("providers")
+    if not isinstance(raw, list):
+        raw = [body] if body else []
+    if not raw:
+        return jsonify({"ok": False, "error": "No providers provided"}), 400
+
+    saved = {p["id"]: p for p in load_settings()["providers"]}
+    results = []
+    for e in raw:
+        agent = entry_to_agent(e)
+        if not agent["api_key"] and e.get("id") and e["id"] in saved:
+            agent["api_key"] = saved[e["id"]].get("api_key") or ""
+        if not agent["api_key"]:
+            results.append({"name": agent["name"], "ok": False, "error": "no API key"})
+            continue
+        try:
+            chat_json('Reply with the JSON object {"ok": true}. Return raw JSON only.', agent=agent)
+            results.append({"name": agent["name"], "ok": True})
+        except Exception as ex:  # noqa: BLE001
+            results.append({"name": agent["name"], "ok": False, "error": str(ex)})
+    return jsonify({"results": results})
 
 
 if __name__ == "__main__":

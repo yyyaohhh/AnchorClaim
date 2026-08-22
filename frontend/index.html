@@ -679,30 +679,41 @@
     background:rgba(5,12,22,.52);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
     opacity:0;pointer-events:none;transition:opacity .2s}
   .set-overlay.open{opacity:1;pointer-events:auto}
-  .set-modal{width:min(476px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
-    box-shadow:var(--shadow-lg);overflow:hidden;transform:translateY(12px) scale(.98);transition:transform .2s}
+  .set-modal{width:min(560px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-lg);overflow:hidden;transform:translateY(12px) scale(.98);transition:transform .2s;
+    max-height:min(88vh,760px);display:flex;flex-direction:column}
   .set-overlay.open .set-modal{transform:none}
-  .set-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .set-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);flex:0 0 auto}
   .set-head .spacer{flex:1}
-  .set-body{padding:16px;display:flex;flex-direction:column;gap:13px}
-  .set-field{display:flex;flex-direction:column;gap:6px}
-  .set-field>label{font:650 11px var(--sans);color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
-  .set-presets{display:flex;gap:7px}
-  .set-preset{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;
-    border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:11px;padding:10px 12px;
-    cursor:pointer;font:650 12.5px var(--sans);transition:color .15s,border-color .15s,background .15s,box-shadow .15s}
-  .set-preset:hover{color:var(--accent);border-color:var(--accent)}
-  .set-preset.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);box-shadow:var(--shadow-sm)}
-  .set-preset small{font:500 10px var(--sans);color:var(--faint);letter-spacing:0}
-  .set-preset.active small{color:var(--accent)}
-  .set-modal input{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;
+  .set-body{padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+  .set-list{display:flex;flex-direction:column;gap:10px}
+  .set-card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface-2)}
+  .set-card-top{display:flex;align-items:center;gap:8px}
+  .set-kind{flex:0 0 auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);
+    font:600 11.5px var(--sans);padding:7px 9px;cursor:pointer}
+  .set-kind:focus{outline:none;border-color:var(--accent)}
+  .set-label{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;
+    font:600 12px var(--sans);color:var(--ink);background:var(--surface)}
+  .set-del{flex:0 0 auto;width:26px;height:26px;display:grid;place-items:center;border:1px solid var(--line);
+    border-radius:8px;background:var(--surface);color:var(--muted);cursor:pointer;font-size:16px;line-height:1;transition:color .15s,border-color .15s}
+  .set-del:hover{color:var(--red);border-color:var(--red)}
+  .set-keyrow{display:flex;align-items:center;gap:8px}
+  .set-keyrow .set-key{flex:1;min-width:0}
+  .set-clearkey{flex:0 0 auto;border:none;background:none;padding:0;font:600 11px var(--sans);color:var(--red);cursor:pointer}
+  .set-keynote{font:500 10.5px var(--sans);color:var(--amber)}
+  .set-modal input,.set-modal select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;
     font:500 12.5px var(--sans);color:var(--ink);background:var(--surface)}
-  .set-modal input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .set-modal input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);outline:none}
   .set-modal input::placeholder{color:var(--faint)}
-  .set-clearkey{align-self:flex-start;border:none;background:none;padding:0;font:600 10.5px var(--sans);color:var(--red);cursor:pointer}
+  .set-add{display:flex;align-items:center;gap:10px;border-top:1px dashed var(--line);padding-top:12px}
+  .set-add-label{font:650 11px var(--sans);color:var(--muted);letter-spacing:.3px;text-transform:uppercase;flex:1}
+  .set-add-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .set-addbtn{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:999px;
+    padding:6px 12px;font:600 11.5px var(--sans);cursor:pointer;transition:color .15s,border-color .15s}
+  .set-addbtn:hover{color:var(--accent);border-color:var(--accent)}
   .set-note{font:500 11px var(--sans);color:var(--faint);line-height:1.55}
   .set-note b{color:var(--muted)}
-  .set-foot{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--line);background:var(--surface-2)}
+  .set-foot{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--line);background:var(--surface-2);flex:0 0 auto}
   .set-foot .set-status{flex:1;min-width:0}
   .set-status{font:500 11.5px var(--sans);color:var(--muted)}
   .set-status.ok{color:var(--teal)}
@@ -1079,32 +1090,20 @@
       <button class="qna-close" id="aiSettingsClose" aria-label="Close" title="Close">×</button>
     </header>
     <div class="set-body">
-      <div class="set-field">
-        <label>Provider</label>
-        <div class="set-presets" id="setPresets">
-          <button class="set-preset" data-provider="openai">OpenAI<small>api.openai.com</small></button>
-          <button class="set-preset" data-provider="claude">Claude<small>api.anthropic.com</small></button>
-          <button class="set-preset" data-provider="custom">Custom<small>OpenAI-compatible</small></button>
+      <div class="set-list" id="setList"></div>
+      <div class="set-add">
+        <span class="set-add-label">Add provider</span>
+        <div class="set-add-btns">
+          <button class="set-addbtn" type="button" data-add="openai">+ OpenAI</button>
+          <button class="set-addbtn" type="button" data-add="claude">+ Claude</button>
+          <button class="set-addbtn" type="button" data-add="custom">+ Custom API</button>
         </div>
       </div>
-      <div class="set-field">
-        <label for="setBase">API base URL</label>
-        <input id="setBase" type="text" placeholder="https://api.openai.com/v1" spellcheck="false" autocomplete="off">
-      </div>
-      <div class="set-field">
-        <label for="setKey">API key</label>
-        <input id="setKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off">
-        <button class="set-clearkey" id="setClearKey" type="button" hidden>Clear saved key</button>
-      </div>
-      <div class="set-field">
-        <label for="setModel">Model</label>
-        <input id="setModel" type="text" placeholder="gpt-4o-mini" spellcheck="false" autocomplete="off">
-      </div>
-      <span class="set-note">Stored server-side in <b>.anchorclaim_settings.json</b>, and never sent back to the browser. Leave the key blank to keep your current one. With no key, the pipeline runs the deterministic offline mock — no model needed.</span>
+      <span class="set-note">Every provider you add votes in the evidence step — a claim needs a strict majority, and the first entry runs contract parsing too. Keys are stored server-side in <b>.anchorclaim_settings.json</b> and never sent back to the browser. With no key, the pipeline runs the deterministic offline mock.</span>
     </div>
     <footer class="set-foot">
       <span class="set-status" id="setStatus">Not configured — running offline mock</span>
-      <button class="btn btn-ghost btn-sm" id="setTest">Test</button>
+      <button class="btn btn-ghost btn-sm" id="setTest">Test all</button>
       <button class="btn btn-primary btn-sm" id="setSave">Save</button>
     </footer>
   </div>
@@ -2273,46 +2272,102 @@ document.addEventListener('keydown',(e)=>{
 
 /* ---------------- AI provider settings ---------------- */
 const AI_PRESETS = {
-  openai: { base:'https://api.openai.com/v1', model:'gpt-4o-mini' },
-  claude: { base:'https://api.anthropic.com/v1', model:'claude-haiku-4-5-20251001' },
-  custom: { base:'', model:'' },
+  openai: { kind:'openai', label:'OpenAI', base:'https://api.openai.com/v1', model:'gpt-4o-mini' },
+  claude: { kind:'claude', label:'Claude', base:'https://api.anthropic.com/v1', model:'claude-haiku-4-5-20251001' },
+  custom: { kind:'openai', label:'Custom API', base:'', model:'' },
 };
 const aiSettingsEl = document.getElementById('aiSettings');
 const aiSettingsBtn = document.getElementById('aiSettingsBtn');
 const aiSettingsClose = document.getElementById('aiSettingsClose');
-const setPresetsEl = document.getElementById('setPresets');
-const setBaseEl = document.getElementById('setBase');
-const setKeyEl = document.getElementById('setKey');
-const setModelEl = document.getElementById('setModel');
+const setListEl = document.getElementById('setList');
 const setStatusEl = document.getElementById('setStatus');
-const setClearKeyBtn = document.getElementById('setClearKey');
 const setSaveBtn = document.getElementById('setSave');
 const setTestBtn = document.getElementById('setTest');
-let aiProvider = 'openai';
+let setClearKeys = new Set();  // provider ids marked for key removal on save
 
-function aiSelectPreset(provider){
-  aiProvider = provider;
-  const p = AI_PRESETS[provider];
-  setPresetsEl.querySelectorAll('.set-preset').forEach(b=>b.classList.toggle('active', b.dataset.provider===provider));
-  if(provider==='custom'){
-    setBaseEl.value=''; setModelEl.value='';
-    setBaseEl.placeholder='https://your-host/v1'; setModelEl.placeholder='model name';
-  }else{
-    setBaseEl.value = p.base; setModelEl.value = p.model;
-    setBaseEl.placeholder = p.base; setModelEl.placeholder = 'e.g. ' + p.model;
-  }
+function setEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function setCardHTML(c){
+  const hint = c.api_key_hint ? (' · …'+c.api_key_hint) : '';
+  return `<div class="set-card" data-id="${setEsc(c.id)}">
+    <div class="set-card-top">
+      <select class="set-kind">
+        <option value="openai"${c.kind!=='claude'?' selected':''}>OpenAI-compatible</option>
+        <option value="claude"${c.kind==='claude'?' selected':''}>Claude / Anthropic</option>
+      </select>
+      <input class="set-label" type="text" placeholder="Name" value="${setEsc(c.label)}" spellcheck="false" autocomplete="off">
+      <button class="set-del" type="button" title="Remove">×</button>
+    </div>
+    <input class="set-base" type="text" placeholder="API base URL" value="${setEsc(c.base_url)}" spellcheck="false" autocomplete="off">
+    <input class="set-model" type="text" placeholder="Model" value="${setEsc(c.model)}" spellcheck="false" autocomplete="off">
+    <div class="set-keyrow">
+      <input class="set-key" type="password" placeholder="${c.api_key_set ? 'saved'+hint : 'API key'}" spellcheck="false" autocomplete="off">
+      <button class="set-clearkey" type="button"${(c.api_key_set && !setClearKeys.has(c.id))?'':' hidden'}>Clear</button>
+    </div>
+    ${setClearKeys.has(c.id) ? '<span class="set-keynote">Key will be removed on save</span>' : ''}
+  </div>`;
 }
-setPresetsEl.querySelectorAll('.set-preset').forEach(b=>{
-  b.addEventListener('click', ()=> aiSelectPreset(b.dataset.provider));
-});
+
+function setWireCard(root){
+  const id = root.dataset.id;
+  root.querySelector('.set-del').onclick = ()=> root.remove();
+  root.querySelector('.set-clearkey').onclick = ()=>{
+    setClearKeys.add(id);
+    const btn = root.querySelector('.set-clearkey');
+    if(btn) btn.hidden = true;
+    const key = root.querySelector('.set-key');
+    key.value = ''; key.placeholder = 'key will be cleared';
+    if(!root.querySelector('.set-keynote')){
+      const note = document.createElement('span');
+      note.className = 'set-keynote';
+      note.textContent = 'Key will be removed on save';
+      root.appendChild(note);
+    }
+  };
+}
+
+function setRender(providers){
+  setClearKeys = new Set();
+  setListEl.innerHTML = providers.map(setCardHTML).join('');
+  setListEl.querySelectorAll('.set-card').forEach(setWireCard);
+}
+
+function setNewCard(preset){
+  const p = AI_PRESETS[preset];
+  const card = { id:'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+                 kind:p.kind, label:p.label, base_url:p.base, model:p.model, api_key_set:false, api_key_hint:'' };
+  const wrap = document.createElement('div');
+  wrap.innerHTML = setCardHTML(card);
+  const root = wrap.firstElementChild;
+  setListEl.appendChild(root);
+  setWireCard(root);
+  const base = root.querySelector('.set-base');
+  if(preset==='custom' && base) base.focus();
+}
+
+function setCollect(){
+  const out = [];
+  setListEl.querySelectorAll('.set-card').forEach(root=>{
+    const id = root.dataset.id;
+    out.push({
+      id: id,
+      kind: root.querySelector('.set-kind').value,
+      label: root.querySelector('.set-label').value.trim(),
+      base_url: root.querySelector('.set-base').value.trim(),
+      model: root.querySelector('.set-model').value.trim(),
+      api_key: root.querySelector('.set-key').value.trim(),
+      clear_key: setClearKeys.has(id),
+    });
+  });
+  return out;
+}
 
 function aiPaintStatus(s){
-  if(!s || !s.provider) return;
-  setKeyEl.placeholder = s.api_key_set ? ('saved · …'+s.api_key_hint) : 'sk-…';
-  setClearKeyBtn.hidden = !s.api_key_set;
+  if(!s) return;
+  const n = s.agents ? s.agents.length : 0;
   setStatusEl.textContent = s.configured
-    ? ('Connected · '+s.provider + (s.model? ' · '+s.model : ''))
-    : 'Not configured — running offline mock';
+    ? ('Connected · '+n+' provider'+(n===1?'':'s')+' ('+s.agents.join(', ')+')')
+    : ('Not configured — offline mock · '+s.providers.length+' saved provider'+(s.providers.length===1?'':'s'));
   setStatusEl.className = 'set-status ' + (s.configured ? 'ok' : '');
 }
 
@@ -2320,12 +2375,8 @@ async function aiLoadSettings(){
   try{
     const r = await fetch(API + '/api/settings');
     const s = await r.json();
-    if(s && s.provider){
-      aiProvider = s.provider;
-      setPresetsEl.querySelectorAll('.set-preset').forEach(b=>b.classList.toggle('active', b.dataset.provider===s.provider));
-      setBaseEl.value = s.base_url || '';
-      setModelEl.value = s.model || '';
-      setKeyEl.value = '';
+    if(s && Array.isArray(s.providers)){
+      setRender(s.providers);
       aiPaintStatus(s);
     }
   }catch(e){
@@ -2334,29 +2385,18 @@ async function aiLoadSettings(){
   }
 }
 
-function aiFieldValues(){
-  return {
-    provider: aiProvider,
-    base_url: setBaseEl.value.trim(),
-    api_key: setKeyEl.value.trim(),
-    model: setModelEl.value.trim(),
-  };
-}
-
-async function aiSave(clearKey){
+async function aiSave(){
   setSaveBtn.disabled = true;
-  setStatusEl.textContent = clearKey ? 'Clearing key…' : 'Saving…';
+  setStatusEl.textContent = 'Saving…';
   setStatusEl.className = 'set-status';
   try{
-    const body = aiFieldValues();
-    if(clearKey) body.clear_key = true;
+    const body = { providers: setCollect() };
     const r = await fetch(API + '/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     const d = await r.json();
     if(!r.ok) throw new Error(d.error || ('HTTP '+r.status));
-    setKeyEl.value = '';
+    setRender(d.saved.providers);
     aiPaintStatus(d.saved);
-    if(!d.saved.configured){ setStatusEl.textContent = 'Saved — offline mock (no key)'; setStatusEl.className = 'set-status'; }
-    toast('AI provider saved','ok');
+    toast('AI providers saved','ok');
   }catch(e){
     setStatusEl.textContent = 'Save failed: '+e.message;
     setStatusEl.className = 'set-status err';
@@ -2366,16 +2406,26 @@ async function aiSave(clearKey){
 }
 
 async function aiTest(){
+  const entries = setCollect();
+  if(!entries.length){ setStatusEl.textContent='Nothing to test — add a provider first'; setStatusEl.className='set-status err'; return; }
   setTestBtn.disabled = true;
-  setStatusEl.textContent = 'Testing connection…';
+  setStatusEl.textContent = 'Testing '+entries.length+' provider'+(entries.length===1?'':'s')+'…';
   setStatusEl.className = 'set-status';
   try{
-    const r = await fetch(API + '/api/settings/test', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(aiFieldValues())});
+    const r = await fetch(API + '/api/settings/test', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({providers: entries})});
     const d = await r.json();
-    if(!r.ok || !d.ok) throw new Error(d.error || ('HTTP '+r.status));
-    setStatusEl.textContent = 'Connection OK · ' + d.model;
-    setStatusEl.className = 'set-status ok';
-    toast('Provider reachable','ok');
+    const ok = (d.results||[]).filter(x=>x.ok).length;
+    const total = (d.results||[]).length;
+    if(ok === total){
+      setStatusEl.textContent = 'Connection OK · '+ok+'/'+total+' reachable';
+      setStatusEl.className = 'set-status ok';
+      toast('All providers reachable','ok');
+    }else{
+      const names = (d.results||[]).filter(x=>!x.ok).map(x=>x.name).join(', ');
+      setStatusEl.textContent = ok+'/'+total+' reachable · failed: '+(names||'?');
+      setStatusEl.className = 'set-status err';
+      toast('Some providers failed','err');
+    }
   }catch(e){
     setStatusEl.textContent = 'Test failed: '+e.message;
     setStatusEl.className = 'set-status err';
@@ -2390,9 +2440,9 @@ function aiClose(){ aiSettingsEl.classList.remove('open'); aiSettingsEl.setAttri
 aiSettingsBtn.addEventListener('click', aiOpen);
 aiSettingsClose.addEventListener('click', aiClose);
 aiSettingsEl.addEventListener('click', (e)=>{ if(e.target===aiSettingsEl) aiClose(); });
-setSaveBtn.addEventListener('click', ()=> aiSave(false));
-setClearKeyBtn.addEventListener('click', ()=> aiSave(true));
+setSaveBtn.addEventListener('click', aiSave);
 setTestBtn.addEventListener('click', aiTest);
+document.querySelectorAll('.set-addbtn').forEach(b=> b.addEventListener('click', ()=> setNewCard(b.dataset.add)));
 document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && aiSettingsEl.classList.contains('open')) aiClose(); });
 
 boot();

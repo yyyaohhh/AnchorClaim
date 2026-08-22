@@ -1,20 +1,24 @@
 """
 Unified LLM provider layer for AnchorClaim.
 
-One place to configure the model that powers the whole product:
-  * contract parsing (step1_parse_contract),
-  * the independent evidence-reasoning agents and their vote (step2b_reason_evidence),
-  * the Q&A assistant (qna_agent).
+One place to configure the models that power the whole product:
+  * contract parsing (step1_parse_contract) — uses the first configured provider,
+  * the independent evidence-reasoning agents and their vote (step2b_reason_evidence)
+    — every configured provider votes, and a claim needs a strict majority,
+  * the Q&A assistant (qna_agent) — uses the first OpenAI-compatible provider.
 
-Three provider presets, selectable from the Settings page in the UI:
-  * openai  -> OpenAI (or any OpenAI-compatible /chat/completions endpoint),
-  * claude  -> Anthropic's Claude (/messages),
-  * custom  -> any self-hosted / third-party OpenAI-compatible endpoint.
+The Settings page in the UI manages a *list* of providers, so several can coexist
+(e.g. OpenAI + one or more custom / self-hosted OpenAI-compatible endpoints, plus
+Claude). Each entry stores a wire format:
+
+  * "openai"  -> OpenAI-compatible /chat/completions (OpenAI, DeepSeek, OpenRouter,
+                 Groq, Ollama /v1, any self-hosted vLLM/TGI server, ...),
+  * "claude"  -> Anthropic's /messages.
 
 Configuration precedence (highest first):
   1. ``.anchorclaim_settings.json`` written by the Settings page,
   2. environment variables loaded from ``.env`` (OPENAI_API_KEY, ANTHROPIC_API_KEY,
-     GEMINI_API_KEY, ...).
+     GEMINI_API_KEY — the latter only participates via env, it has no UI preset).
 
 There are no SDK requirements — every call is a plain HTTPS POST, so this works
 on serverless (Vercel) exactly like locally. When no provider is configured, or a
@@ -29,36 +33,16 @@ import re
 import tempfile
 import urllib.error
 import urllib.request
+import uuid
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 
-# "kind" decides the wire format the endpoint speaks. "custom" reuses the OpenAI
-# chat-completions format against whatever base URL the user supplies.
-PROVIDERS = {
-    "openai": {
-        "label": "OpenAI",
-        "base_url": "https://api.openai.com/v1",
-        "model": "gpt-4o-mini",
-        "env_key": "OPENAI_API_KEY",
-        "kind": "openai",
-    },
-    "claude": {
-        "label": "Claude (Anthropic)",
-        "base_url": "https://api.anthropic.com/v1",
-        "model": "claude-haiku-4-5-20251001",
-        "env_key": "ANTHROPIC_API_KEY",
-        "kind": "anthropic",
-    },
-    "custom": {
-        "label": "Custom API",
-        "base_url": "",
-        "model": "",
-        "env_key": "ANCHORCLAIM_API_KEY",
-        "kind": "openai",
-    },
+# Wire-format defaults per stored kind (used when a field is left blank).
+KIND_DEFAULTS = {
+    "openai": {"base_url": "https://api.openai.com/v1", "model": "gpt-4o-mini"},
+    "claude": {"base_url": "https://api.anthropic.com/v1", "model": "claude-haiku-4-5-20251001"},
 }
 
-DEFAULT_PROVIDER = "openai"
 REQUEST_TIMEOUT = 30
 
 _SETTINGS_CANDIDATES = [
@@ -76,100 +60,199 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
+def _wire_kind(kind: str) -> str:
+    """Map a stored kind ("openai"/"claude"/"custom") to a wire format."""
+    k = (kind or "openai").strip().lower()
+    if k in ("claude", "anthropic"):
+        return "anthropic"
+    return "openai"
+
+
+def _new_id() -> str:
+    return "p" + uuid.uuid4().hex[:10]
+
+
+def _default_label(kind: str) -> str:
+    return "Claude" if _wire_kind(kind) == "anthropic" else "OpenAI-compatible"
+
+
 # ---------------------------------------------------------------------------
-# Settings persistence (the Settings page in the UI writes this file).
+# Settings persistence — a list of providers, one entry per configured vendor.
 # ---------------------------------------------------------------------------
-def load_settings() -> dict:
-    """Read the saved settings dict; empty strings where nothing is configured."""
-    settings = {"provider": "", "base_url": "", "api_key": "", "model": ""}
+def _read_file() -> dict | None:
     for path in _SETTINGS_CANDIDATES:
         if not os.path.exists(path):
             continue
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-            if isinstance(data, dict):
-                for key in settings:
-                    settings[key] = str(data.get(key) or "").strip()
-            break
+            return data if isinstance(data, dict) else None
         except (OSError, ValueError):
             continue
-    return settings
+    return None
 
 
-def save_settings(data: dict) -> dict:
-    """Persist settings and return the saved (normalised) dict.
+def _migrate_old(data: dict) -> list[dict]:
+    """Convert the pre-multi-provider single-provider shape into a one-entry list."""
+    if "provider" in data:
+        provider = str(data.get("provider") or "openai").strip()
+        kind = "claude" if provider == "claude" else "openai"
+        return [{
+            "id": _new_id(),
+            "label": provider if provider in ("openai", "claude") else "Custom API",
+            "kind": kind,
+            "base_url": str(data.get("base_url") or "").strip(),
+            "model": str(data.get("model") or "").strip(),
+            "api_key": str(data.get("api_key") or "").strip(),
+        }]
+    return []
 
-    Leaving ``api_key`` blank keeps the previously saved key for the same provider
-    (the UI never echoes a key back, so a blank field means "unchanged"). Pass
-    ``clear_key: true`` to explicitly remove the stored key.
-    """
-    settings = {
-        "provider": str(data.get("provider") or "openai").strip(),
-        "base_url": str(data.get("base_url") or "").strip(),
-        "api_key": str(data.get("api_key") or "").strip(),
-        "model": str(data.get("model") or "").strip(),
+
+def load_settings() -> dict:
+    """Return ``{"providers": [entry, ...]}`` — the full list including any saved keys."""
+    data = _read_file()
+    if data is None:
+        return {"providers": []}
+    if "providers" in data:
+        raw = data["providers"]
+        if isinstance(raw, list):
+            return {"providers": [_normalize_entry(e) for e in raw]}
+    migrated = _migrate_old(data)
+    return {"providers": migrated}
+
+
+def _normalize_entry(entry: dict) -> dict:
+    kind = str(entry.get("kind") or "openai").strip().lower()
+    if kind not in ("openai", "claude"):
+        kind = "openai"
+    defaults = KIND_DEFAULTS[kind]
+    eid = str(entry.get("id") or _new_id()).strip() or _new_id()
+    label = str(entry.get("label") or "").strip() or _default_label(kind)
+    base_url = str(entry.get("base_url") or "").strip() or defaults["base_url"]
+    model = str(entry.get("model") or "").strip() or defaults["model"]
+    return {
+        "id": eid,
+        "label": label,
+        "kind": kind,
+        "base_url": base_url,
+        "model": model,
+        "api_key": str(entry.get("api_key") or "").strip(),
     }
-    if settings["provider"] not in PROVIDERS:
-        settings["provider"] = DEFAULT_PROVIDER
 
-    if bool(data.get("clear_key")):
-        settings["api_key"] = ""
-    elif not settings["api_key"]:
-        previous = load_settings()
-        if previous.get("provider") == settings["provider"] and previous.get("api_key"):
-            settings["api_key"] = previous["api_key"]
 
-    target = _SETTINGS_CANDIDATES[0]
-    try:
-        with open(target, "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=2)
-    except OSError:
-        target = _SETTINGS_CANDIDATES[1]
+def save_settings(data: dict) -> None:
+    """Persist the provider list.
+
+    For each entry, a blank ``api_key`` keeps the previously saved key for the same
+    ``id`` (the UI never echoes a key back, so blank means "unchanged"). Set
+    ``clear_key: true`` on an entry to explicitly remove its stored key.
+    """
+    if not isinstance(data, dict):
+        return
+    previous = {p["id"]: p for p in load_settings()["providers"]}
+    raw = data.get("providers")
+    if not isinstance(raw, list):
+        return
+
+    providers: list[dict] = []
+    for entry in raw:
+        e = _normalize_entry(entry)
+        if bool(entry.get("clear_key")):
+            e["api_key"] = ""
+        elif not e["api_key"]:
+            old = previous.get(e["id"])
+            if old and old.get("api_key"):
+                e["api_key"] = old["api_key"]
+        providers.append(e)
+
+    payload = json.dumps({"providers": providers}, indent=2)
+    for target in _SETTINGS_CANDIDATES:
         try:
             with open(target, "w", encoding="utf-8") as f:
-                json.dump(settings, f, indent=2)
+                f.write(payload)
+            return
         except OSError:
-            pass
-    return settings
+            continue
 
 
-def resolve(settings: dict | None = None) -> dict:
-    """Return a fully-resolved config: preset defaults + saved key + env fallback."""
-    s = dict(settings if settings is not None else load_settings())
-    provider = (s.get("provider") or DEFAULT_PROVIDER).strip()
-    if provider not in PROVIDERS:
-        provider = DEFAULT_PROVIDER
-    preset = PROVIDERS[provider]
-
-    resolved = {
-        "provider": provider,
-        "kind": preset["kind"],
-        "base_url": (s.get("base_url") or preset["base_url"]).strip(),
-        "model": (s.get("model") or preset["model"]).strip(),
-        "api_key": (s.get("api_key") or "").strip(),
+# ---------------------------------------------------------------------------
+# Agent discovery.
+# ---------------------------------------------------------------------------
+def entry_to_agent(entry: dict) -> dict:
+    """Turn one provider entry into the {name, kind, base_url, api_key, model}
+    shape the completion functions consume. ``kind`` is already a wire format."""
+    e = _normalize_entry(entry)
+    return {
+        "name": e["label"],
+        "kind": _wire_kind(e["kind"]),
+        "base_url": e["base_url"],
+        "api_key": e["api_key"],
+        "model": e["model"],
     }
-    if not resolved["api_key"]:
-        resolved["api_key"] = os.getenv(preset["env_key"], "").strip()
-    return resolved
 
 
-def is_configured(settings: dict | None = None) -> bool:
-    return bool(resolve(settings)["api_key"])
+def configured_agents() -> list[dict]:
+    """Every provider that actually has a key, plus env-only vendors.
+
+    Settings-page entries are used as-is (all of them — several custom endpoints
+    coexist and vote independently). The env vendors only join if their key is set
+    and no settings entry already speaks the same wire format (so a config on the
+    page doesn't get double-weighted by an env key of the same kind).
+    """
+    agents: list[dict] = []
+    covered: set[str] = set()
+    for p in load_settings()["providers"]:
+        if p.get("api_key"):
+            agents.append(entry_to_agent(p))
+            covered.add(agents[-1]["kind"])
+
+    env_vendors = (
+        ("openai", "openai", "OPENAI_API_KEY", "https://api.openai.com/v1", "OPENAI_MODEL", "gpt-4o-mini"),
+        ("anthropic", "anthropic", "ANTHROPIC_API_KEY", "https://api.anthropic.com/v1", "ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
+        ("gemini", "gemini", "GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta", "GEMINI_MODEL", "gemini-2.0-flash"),
+    )
+    for name, kind, key_env, base, model_env, default_model in env_vendors:
+        key = os.getenv(key_env, "").strip()
+        if key and (kind == "gemini" or kind not in covered):
+            agents.append({
+                "name": name,
+                "kind": kind,
+                "base_url": base,
+                "api_key": key,
+                "model": os.getenv(model_env, default_model).strip(),
+            })
+            covered.add(kind)
+    return agents
+
+
+def primary_agent() -> dict | None:
+    agents = configured_agents()
+    return agents[0] if agents else None
+
+
+def is_configured() -> bool:
+    return bool(configured_agents())
 
 
 def public_status() -> dict:
-    """Masked view of the current config, safe to return to the browser."""
-    r = resolve()
-    key = r["api_key"]
+    """Masked view of the full provider list, safe to return to the browser."""
+    entries = []
+    for p in load_settings()["providers"]:
+        key = p.get("api_key") or ""
+        entries.append({
+            "id": p["id"],
+            "label": p["label"],
+            "kind": p["kind"],
+            "base_url": p["base_url"],
+            "model": p["model"],
+            "api_key_set": bool(key),
+            "api_key_hint": (key[-4:] if len(key) >= 4 else "") if key else "",
+        })
+    agents = configured_agents()
     return {
-        "provider": r["provider"],
-        "kind": r["kind"],
-        "base_url": r["base_url"],
-        "model": r["model"],
-        "configured": bool(key),
-        "api_key_set": bool(key),
-        "api_key_hint": (key[-4:] if len(key) >= 4 else "") if key else "",
+        "providers": entries,
+        "configured": bool(agents),
+        "agents": [a["name"] for a in agents],
     }
 
 
@@ -243,50 +326,12 @@ def complete(agent: dict, prompt: str, system: str | None = None) -> str:
     return openai_chat(prompt, agent["base_url"], agent["api_key"], agent["model"], system)
 
 
-def chat_json(prompt: str, settings: dict | None = None, system: str | None = None) -> dict:
-    """One-shot JSON completion through the configured provider (used by step 1)."""
-    r = resolve(settings)
-    text = complete(r, prompt, system)
+def chat_json(prompt: str, agent: dict | None = None, system: str | None = None) -> dict:
+    """One-shot JSON completion (used by step 1). Uses the first configured provider
+    when no specific agent is passed."""
+    if agent is None:
+        agent = primary_agent()
+        if agent is None:
+            raise RuntimeError("no configured AI provider")
+    text = complete(agent, prompt, system)
     return _extract_json(text)
-
-
-# ---------------------------------------------------------------------------
-# Agent discovery for the multi-agent vote (step 2b).
-# ---------------------------------------------------------------------------
-def configured_agents() -> list[dict]:
-    """Return one entry per distinct provider that has a key.
-
-    The Settings page configures a single primary provider; the other vendors can
-    still participate in the vote when their keys are present in the environment.
-    """
-    primary = resolve()
-    agents: list[dict] = []
-    if primary["api_key"]:
-        agents.append({
-            "name": primary["provider"],
-            "kind": primary["kind"],
-            "base_url": primary["base_url"],
-            "api_key": primary["api_key"],
-            "model": primary["model"],
-        })
-
-    seen = {a["name"] for a in agents}
-    seen_kinds = {a["kind"] for a in agents}
-    env_vendors = (
-        ("openai", "openai", "OPENAI_API_KEY", "https://api.openai.com/v1", "OPENAI_MODEL", "gpt-4o-mini"),
-        ("anthropic", "anthropic", "ANTHROPIC_API_KEY", "https://api.anthropic.com/v1", "ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
-        ("gemini", "gemini", "GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta", "GEMINI_MODEL", "gemini-2.0-flash"),
-    )
-    for name, kind, key_env, base, model_env, default_model in env_vendors:
-        key = os.getenv(key_env, "").strip()
-        if key and name not in seen and kind not in seen_kinds:
-            agents.append({
-                "name": name,
-                "kind": kind,
-                "base_url": base,
-                "api_key": key,
-                "model": os.getenv(model_env, default_model).strip(),
-            })
-            seen.add(name)
-            seen_kinds.add(kind)
-    return agents
