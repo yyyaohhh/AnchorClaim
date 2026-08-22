@@ -4,7 +4,7 @@ Fleet-scale overview + a fully-auditable generated fleet.
 The single-voyage demo drills into a handful of sample voyages one at a time. A
 production deployment runs the whole book at once, so this module generates a
 deterministic fleet of dozens of voyages and summarises the result — total
-exposure and a per-vessel traffic-light (demurrage / clear) for the
+exposure and a per-vessel traffic-light (demurrage / despatch / clear) for the
 fleet-overview screen.
 
 Each generated voyage carries a real `contract_text` plus the exact structured
@@ -76,13 +76,15 @@ Time lost due to bad weather, strikes, port closures, or force majeure events sh
 def build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
     """Generate a deterministic, realistic-looking fleet with a known mix of outcomes.
 
-    Outcome targets: ~57% demurrage, the remainder clear, shuffled
-    deterministically so the fleet is stable across requests. Every voyage is
-    signed, so there are no dispute or review states.
+    Outcome targets: ~45% demurrage, ~30% despatch (finished ahead of laytime),
+    the remainder clear, shuffled deterministically so the fleet is stable
+    across requests. Every voyage is signed, so there are no dispute or review
+    states.
     """
     rng = random.Random(seed)
 
-    targets = ["demurrage"] * int(round(n * 0.57))
+    targets = ["demurrage"] * int(round(n * 0.45))
+    targets += ["despatch"] * int(round(n * 0.30))
     targets += ["none"] * (n - len(targets))
     rng.shuffle(targets)
 
@@ -105,14 +107,19 @@ def build_fleet(n: int = 42, seed: int = 2026) -> list[dict]:
         deposit = int(freight * rng.choice([0.18, 0.20, 0.22, 0.25]))
 
         excess = 0.0
+        saved = 0.0
         if target == "demurrage":
             excess = float(rng.randint(8, 60))
-        # Keep the accrued penalty within the escrow deposit so the roll-up total
-        # reconciles exactly with the single-voyage drill-down.
-        max_excess = int(deposit * 24.0 / rate)
-        excess = min(excess, float(max_excess))
+            # Keep the accrued penalty within the escrow deposit so the roll-up
+            # total reconciles exactly with the single-voyage drill-down.
+            max_excess = int(deposit * 24.0 / rate)
+            excess = min(excess, float(max_excess))
+        elif target == "despatch":
+            # Finished ahead of the allowed laytime; capped so a short-laytime
+            # voyage can't be asked to save more hours than it was allowed.
+            saved = float(rng.randint(4, min(40, laytime - 4)))
 
-        gross = laytime + excess
+        gross = laytime + excess - saved
 
         berth = base + timedelta(days=i, hours=rng.randint(2, 9))
         depart = berth + timedelta(hours=gross)
@@ -164,9 +171,10 @@ def fleet_overview() -> dict:
     fleet = build_fleet()
 
     voyages = []
-    status_counts = {"demurrage": 0, "none": 0}
+    status_counts = {"demurrage": 0, "despatch": 0, "none": 0}
     by_port: dict[str, dict] = {}
     total_exposure = 0.0
+    total_despatch = 0.0
     total_escrow = 0
     total_freight = 0
     recovered = 0
@@ -178,23 +186,29 @@ def fleet_overview() -> dict:
         deposit = v["escrow"]["deposit"]
         freight = v["escrow"]["freight"]
         excess = receipt["excess_time_hours"]
+        saved = receipt["saved_time_hours"]
 
         if excess > 0:
             status = "demurrage"
             amount = round(min(penalty, deposit), 2)
             recovered += 1
+        elif saved > 0:
+            status = "despatch"
+            amount = receipt["total_despatch_usd"]
+            total_despatch += amount
+            cleared += 1
         else:
             status = "none"
             amount = 0.0
             cleared += 1
 
         status_counts[status] += 1
-        total_exposure += amount
+        total_exposure += amount if status == "demurrage" else 0.0
         total_escrow += deposit
         total_freight += freight
         by_port.setdefault(v["port"], {"count": 0, "exposure": 0.0})
         by_port[v["port"]]["count"] += 1
-        by_port[v["port"]]["exposure"] += amount
+        by_port[v["port"]]["exposure"] += amount if status == "demurrage" else 0.0
 
         voyages.append({
             "id": v["id"],
@@ -206,14 +220,16 @@ def fleet_overview() -> dict:
             "status": status,
             "amount_usd": amount,
             "excess_hours": round(excess, 2),
+            "saved_hours": round(saved, 2),
         })
 
-    order = {"demurrage": 0, "none": 1}
+    order = {"demurrage": 0, "despatch": 1, "none": 2}
     voyages.sort(key=lambda x: (order[x["status"]], -x["amount_usd"], x["vessel"]))
 
     return {
         "total_voyages": len(voyages),
         "total_exposure_usd": round(total_exposure, 2),
+        "total_despatch_usd": round(total_despatch, 2),
         "total_escrow_usd": total_escrow,
         "total_freight_usd": total_freight,
         "recovered": recovered,

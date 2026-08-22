@@ -557,8 +557,8 @@
   .fleet-runline b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums}
   .fleet-runbar{flex:1;height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
   .fleet-runbar>span{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--teal))}
-  .fleet-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin:24px 0 22px}
-  @media(max-width:980px){.fleet-kpis{grid-template-columns:repeat(2,1fr)}}
+  .fleet-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:24px 0 22px}
+  @media(max-width:1180px){.fleet-kpis{grid-template-columns:repeat(2,1fr)}}
   .fleet-kpis .kpi{box-shadow:var(--shadow-sm)}
   .fleet-split{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
   @media(max-width:980px){.fleet-split{grid-template-columns:1fr}}
@@ -575,13 +575,13 @@
   .tchip:hover{box-shadow:var(--shadow);border-color:var(--line-strong);transform:translateY(-1px)}
   .tchip .tc-open{margin-top:1px;font:600 10px var(--sans);color:var(--muted);transition:color .15s}
   .tchip:hover .tc-open{color:var(--accent)}
-  .tchip.demurrage{border-left-color:var(--red)} .tchip.dispute{border-left-color:var(--gold)} .tchip.none{border-left-color:var(--teal)}
+  .tchip.demurrage{border-left-color:var(--red)} .tchip.dispute{border-left-color:var(--gold)} .tchip.despatch{border-left-color:var(--accent)} .tchip.none{border-left-color:var(--teal)}
   .tchip .tc-tag{font:650 10px var(--sans);letter-spacing:.7px;text-transform:uppercase}
-  .tchip.demurrage .tc-tag{color:var(--red)} .tchip.dispute .tc-tag{color:var(--gold)} .tchip.none .tc-tag{color:var(--teal)}
+  .tchip.demurrage .tc-tag{color:var(--red)} .tchip.dispute .tc-tag{color:var(--gold)} .tchip.despatch .tc-tag{color:var(--accent)} .tchip.none .tc-tag{color:var(--teal)}
   .tchip .tc-vessel{font:650 13.5px var(--sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tchip .tc-port{font:500 11px var(--mono);color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tchip .tc-amt{font:700 13px var(--mono);font-variant-numeric:tabular-nums}
-  .tchip.demurrage .tc-amt{color:var(--red)} .tchip.dispute .tc-amt{color:var(--gold)} .tchip.none .tc-amt{color:var(--teal)}
+  .tchip.demurrage .tc-amt{color:var(--red)} .tchip.dispute .tc-amt{color:var(--gold)} .tchip.despatch .tc-amt{color:var(--accent)} .tchip.none .tc-amt{color:var(--teal)}
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow-sm)}
   .panel + .panel{margin-top:16px}
   .panel h4{font:650 14px var(--sans);color:var(--ink);margin-bottom:14px}
@@ -818,7 +818,8 @@
       </div>
       <div class="features">
         <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg></div><h3>AI charter-party parsing</h3><p>Extracts laytime, daily rate and suspension clauses from free-text contracts into structured data — with a confidence score on every field.</p></div>
-        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"/><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"/><path d="M12 18h.01"/></svg></div><h3>AIS cross-check</h3><p>Compares the port's Statement of Facts against actual AIS in-port hours, flagging any material delta as a potential fraud before money moves.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"/><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"/><path d="M12 18h.01"/></svg></div><h3>Gather multi-source evidence</h3><p>Pulls AIS, weather, satellite, port community, NOR and news signals — six independent sources, so no single falsified log can slip through.</p></div>
+        <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></div><h3>AI agents vote</h3><p>Three independent agents weigh all six sources and decide what's corroborated by majority — no single model's mistake, and no human, tips the verdict.</p></div>
         <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg></div><h3>Automatic demurrage calc</h3><p>Deducts contractual suspension time — weather, strikes, congestion — and computes the exact penalty to the dollar, pro-rata by the day.</p></div>
         <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div><h3>On-chain escrow settlement</h3><p>Writes an evidence hash and the amount to an escrow contract that deducts the penalty, pays the owner, and refunds the remainder — immutably.</p></div>
         <div class="feat reveal"><div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div><h3>Zero-touch settlement</h3><p>Signed, verified voyages settle automatically — the agent deducts the penalty, pays the owner and refunds the remainder with no manual step.</p></div>
@@ -1003,7 +1004,8 @@
 
     <section class="fleet-kpis">
       <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--red);background:var(--red-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag" id="fExposureTag">Demurrage receivable</span></div><div class="k-value" id="fExposure" style="color:var(--red)">$0</div><div class="k-sub" id="fExposureSub">auto-collected to owners</div></div>
-      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--accent);background:var(--accent-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/></svg></span><span class="k-tag">Voyages</span></div><div class="k-value" id="fCount">0</div><div class="k-sub">auto-audited</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--accent);background:var(--accent-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="k-tag" id="fDespatchTag">Despatch payable</span></div><div class="k-value" id="fDespatch" style="color:var(--accent)">$0</div><div class="k-sub" id="fDespatchSub">paid direct by owners, off escrow</div></div>
+      <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--muted);background:var(--surface-2)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 1.2.5 2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1"/></svg></span><span class="k-tag">Voyages</span></div><div class="k-value" id="fCount">0</div><div class="k-sub">auto-audited</div></div>
       <div class="kpi"><div class="k-top"><span class="k-icon" style="color:var(--teal);background:var(--teal-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span><span class="k-tag" id="fEscrowTag">Escrow locked</span></div><div class="k-value" id="fEscrow">$0</div><div class="k-sub" id="fEscrowSub">deposits held by escrow</div></div>
     </section>
 
@@ -1492,12 +1494,13 @@ function animateVal(el, target, formatter, dur){
 
 function renderFleetOverview(F){
   animateVal(document.getElementById('fExposure'), F.total_exposure_usd, v=>fmt(v), 900);
+  animateVal(document.getElementById('fDespatch'), F.total_despatch_usd||0, v=>fmt(v), 900);
   animateVal(document.getElementById('fEscrow'), F.total_escrow_usd, v=>fmt(v), 900);
   document.getElementById('fCount').textContent = F.total_voyages;
 
   const dist = document.getElementById('fDist');
   dist.innerHTML = '';
-  [['demurrage','Demurrage','var(--red)'],['none','Clear','var(--teal)']].forEach(([k,lbl,c])=>{
+  [['demurrage','Demurrage','var(--red)'],['despatch','Despatch','var(--accent)'],['none','Clear','var(--teal)']].forEach(([k,lbl,c])=>{
     const n = F.status_counts[k] || 0;
     const pct = F.total_voyages ? Math.round(n/F.total_voyages*100) : 0;
     dist.insertAdjacentHTML('beforeend', `<div class="dist-row"><span class="sw" style="background:${c}"></span><span class="dl">${lbl}</span><div class="dist-bar"><span style="width:${pct}%;background:${c}"></span></div><b>${n}</b></div>`);
@@ -1514,8 +1517,8 @@ function renderFleetOverview(F){
   const tr = document.getElementById('traffic');
   tr.innerHTML = '';
   F.voyages.forEach(v=>{
-    const lbl = v.status==='demurrage' ? 'Demurrage' : 'Clear';
-    const amt = v.status==='demurrage' ? fmt(v.amount_usd) : 'Clear';
+    const lbl = v.status==='demurrage' ? 'Demurrage' : v.status==='despatch' ? 'Despatch' : 'Clear';
+    const amt = (v.status==='demurrage' || v.status==='despatch') ? fmt(v.amount_usd) : 'Clear';
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'tchip '+v.status;
@@ -1540,6 +1543,7 @@ function fleetRoleText(){
 function fleetChipAmt(v){
   const owner = ROLE==='owner';
   if(v.status==='demurrage') return (owner?'+ ':'− ') + fmt(v.amount_usd);
+  if(v.status==='despatch') return (owner?'− ':'+ ') + fmt(v.amount_usd);
   return owner ? 'No claim' : 'No charge';
 }
 function applyFleetRole(){
