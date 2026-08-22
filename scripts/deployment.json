@@ -1,0 +1,15 @@
+{
+  "chain": "Base Sepolia",
+  "deployer": "0x4C700f4D99037f8E84c56fc2E164b2FC7a617D11",
+  "mock_usdc": {
+    "address": "0xF8713499c7E399f7862885aDd52BfA8d9892902b",
+    "deploy_tx": "0xd40e871c67a4f0954b8854d250d6b5ad945783f384fa84ad4b37226a54601812"
+  },
+  "anchor_claim_escrow": {
+    "address": "0x517Ccec9426E39C4399Fd94bcEeeDc8292C8f073",
+    "deploy_tx": "0x0ad3b350c5197c81eabd1f57ec80bd64fc85e5274e8f74f6ba894be350a23213",
+    "attestor": "0x4C700f4D99037f8E84c56fc2E164b2FC7a617D11"
+  },
+  "mint_tx": "0x0f0face4070fd44c392bb2d2918afe5d43231ce5100d5c623767328131af2a76",
+  "explorer": "https://sepolia.basescan.org/address/0x517Ccec9426E39C4399Fd94bcEeeDc8292C8f073"
+}
